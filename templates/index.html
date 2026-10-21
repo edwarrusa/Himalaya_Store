@@ -4,17 +4,258 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ store_name }}</title>
-    <!-- Usaremos Tailwind CSS para que luzca profesional desde el inicio -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        function agregarFilaProducto() {
+            const container = document.getElementById('productos-venta-container');
+            const primeraFila = container.querySelector('.producto-fila');
+            const nuevaFila = primeraFila.cloneNode(true);
+            nuevaFila.querySelector('select').value = "";
+            nuevaFila.querySelector('input').value = "1";
+            container.appendChild(nuevaFila);
+        }
+
+        function eliminarFila(button) {
+            const container = document.getElementById('productos-venta-container');
+            if (container.querySelectorAll('.producto-fila').length > 1) {
+                button.closest('.producto-fila').remove();
+            }
+        }
+    </script>
 </head>
 <body class="bg-slate-50 text-slate-800">
-    <div class="min-h-screen flex flex-col justify-center items-center">
-        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-            <h1 class="text-3xl font-bold text-slate-900 mb-2">{{ store_name }}</h1>
-            <p class="text-slate-600 mb-6">Sistema de Gestión Interna (En Desarrollo)</p>
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-medium">
-                ¡Entorno local con Flask funcionando con éxito! 🚀
+    <div class="max-w-7xl mx-auto py-10 px-4">
+        <h1 class="text-3xl font-bold text-slate-900 mb-1">{{ store_name }}</h1>
+        <p class="text-slate-600 mb-6">Sistema de Gestión Interna y Control Financiero</p>
+
+        <!-- Sección 1: Formularios Principales -->
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            
+            <!-- 1. Cliente -->
+            <div class="bg-white p-4 rounded-2xl shadow-lg">
+                <h2 class="text-sm font-semibold mb-2 text-slate-800">👤 Cliente</h2>
+                <form action="/agregar_cliente" method="POST" class="space-y-2">
+                    <input type="text" name="nombre_cliente" placeholder="Nombre" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <input type="text" name="telefono_cliente" placeholder="Teléfono" class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <input type="text" name="direccion_cliente" placeholder="Dirección" class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <button type="submit" class="w-full bg-slate-800 text-white py-1.5 rounded text-xs hover:bg-slate-900">Guardar</button>
+                </form>
             </div>
+
+            <!-- 2. Billetera (Con saldos visibles) -->
+            <div class="bg-white p-4 rounded-2xl shadow-lg">
+                <h2 class="text-sm font-semibold mb-2 text-slate-800">💳 Billeteras</h2>
+                <form action="/agregar_billetera" method="POST" class="space-y-2">
+                    <input type="text" name="nombre_billetera" placeholder="Ej: Zelle Socio A" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <button type="submit" class="w-full bg-slate-800 text-white py-1.5 rounded text-xs hover:bg-slate-900 mt-2">Crear Wallet</button>
+                </form>
+                <div class="mt-3 max-h-24 overflow-y-auto divide-y divide-slate-100 text-xs">
+                    {% for b in billeteras %}
+                    <div class="py-1 flex justify-between items-center">
+                        <span class="text-slate-700 truncate mr-1">🔹 {{ b.nombre }}</span>
+                        <span class="font-semibold {% if b.saldo >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">${{ "%.2f"|format(b.saldo) }}</span>
+                    </div>
+                    {% else %}
+                    <div class="text-slate-400 italic">Sin wallets.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 3. Producto -->
+            <div class="bg-white p-4 rounded-2xl shadow-lg">
+                <h2 class="text-sm font-semibold mb-2 text-slate-800">📦 Producto</h2>
+                <form action="/agregar_producto" method="POST" class="space-y-2">
+                    <input type="text" name="nombre" placeholder="Nombre" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <input type="number" step="0.01" name="precio" placeholder="Precio ($)" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <input type="number" name="stock" placeholder="Stock" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <button type="submit" class="w-full bg-emerald-600 text-white py-1.5 rounded text-xs hover:bg-emerald-700">Guardar Prod.</button>
+                </form>
+            </div>
+
+            <!-- 4. Gasto -->
+            <div class="bg-white p-4 rounded-2xl shadow-lg border-2 border-red-500/20">
+                <h2 class="text-sm font-semibold mb-2 text-slate-800">💸 Gasto</h2>
+                <form action="/registrar_gasto" method="POST" class="space-y-2">
+                    <input type="text" name="concepto" placeholder="Concepto" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <input type="number" step="0.01" name="monto" placeholder="Monto ($)" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <select name="billetera_id" required class="w-full px-2.5 py-1.5 border rounded text-xs bg-white">
+                        <option value="">Wallet salida</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="w-full bg-red-600 text-white py-1.5 rounded text-xs hover:bg-red-700">Reg. Gasto</button>
+                </form>
+            </div>
+
+            <!-- 5. Transferencia -->
+            <div class="bg-white p-4 rounded-2xl shadow-lg border-2 border-purple-500/20">
+                <h2 class="text-sm font-semibold mb-2 text-slate-800">🔄 Transferencia</h2>
+                <form action="/registrar_transferencia" method="POST" class="space-y-2">
+                    <select name="origen_id" required class="w-full px-2.5 py-1.5 border rounded text-xs bg-white">
+                        <option value="">Origen</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
+                        {% endfor %}
+                    </select>
+                    <select name="destino_id" required class="w-full px-2.5 py-1.5 border rounded text-xs bg-white">
+                        <option value="">Destino</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" step="0.01" name="monto" placeholder="Monto ($)" required class="w-full px-2.5 py-1.5 border rounded text-xs">
+                    <button type="submit" class="w-full bg-purple-600 text-white py-1.5 rounded text-xs hover:bg-purple-700">Transferir</button>
+                </form>
+            </div>
+
+            <!-- 6. Venta Múltiple -->
+            <div class="bg-white p-4 rounded-2xl shadow-lg border-2 border-emerald-500/20">
+                <h2 class="text-sm font-semibold mb-2 text-slate-800">🛒 Venta</h2>
+                <form action="/registrar_venta" method="POST" class="space-y-2">
+                    <select name="cliente_id" required class="w-full px-2 py-1 border rounded text-xs bg-white">
+                        <option value="">Cliente</option>
+                        {% for c in clientes %}
+                        <option value="{{ c.id }}">{{ c.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="billetera_id" required class="w-full px-2 py-1 border rounded text-xs bg-white">
+                        <option value="">Cobro Wallet</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="productos-venta-container" class="space-y-1.5 max-h-24 overflow-y-auto">
+                        <div class="producto-fila flex gap-1">
+                            <select name="producto_id[]" required class="w-3/4 px-1 py-1 border rounded text-xs bg-white">
+                                <option value="">Prod.</option>
+                                {% for p in productos %}
+                                <option value="{{ p.id }}">{{ p.nombre }} (${{ p.precio }})</option>
+                                {% endfor %}
+                            </select>
+                            <input type="number" name="cantidad[]" min="1" value="1" required class="w-1/4 px-1 py-1 border rounded text-xs text-center">
+                        </div>
+                    </div>
+                    <button type="button" onclick="agregarFilaProducto()" class="w-full bg-slate-100 text-slate-700 py-1 rounded text-[10px] hover:bg-slate-200">+ Añadir prod.</button>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-1.5 rounded text-xs hover:bg-blue-700">Procesar Venta</button>
+                </form>
+            </div>
+
+        </div>
+
+        <!-- Sección 2: Tablas de Registros -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Inventario -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg">
+                <h2 class="text-lg font-semibold mb-3 text-slate-800">📦 Inventario Actual</h2>
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b text-slate-500 text-xs uppercase">
+                            <th class="pb-2">Producto</th>
+                            <th class="pb-2">Precio</th>
+                            <th class="pb-2">Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in productos %}
+                        <tr class="border-b last:border-none">
+                            <td class="py-2 font-medium">{{ p.nombre }}</td>
+                            <td class="py-2 text-slate-600">${{ p.precio }}</td>
+                            <td class="py-2">
+                                <span class="px-2 py-0.5 rounded text-xs font-semibold {% if p.stock_actual > 5 %}bg-emerald-100 text-emerald-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ p.stock_actual }} un.
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-3 text-center text-slate-400 italic text-xs">Sin productos.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Ventas Recientes -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg">
+                <h2 class="text-lg font-semibold mb-3 text-slate-800">🛒 Ventas Recientes</h2>
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b text-slate-500 text-xs uppercase">
+                            <th class="pb-2">Cliente</th>
+                            <th class="pb-2">Detalle</th>
+                            <th class="pb-2">Total</th>
+                            <th class="pb-2">Wallet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ventas %}
+                        <tr class="border-b last:border-none text-xs align-top">
+                            <td class="py-2 font-medium">{{ v.cliente.nombre }}</td>
+                            <td class="py-2 text-slate-600">
+                                {% for d in v.detalles %}
+                                <div>{{ d.cantidad }}x {{ d.producto.nombre }}</div>
+                                {% endfor %}
+                            </td>
+                            <td class="py-2 text-emerald-600 font-semibold">${{ "%.2f"|format(v.total) }}</td>
+                            <td class="py-2 text-slate-500">{{ v.billetera.nombre }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="py-3 text-center text-slate-400 italic text-xs">Sin ventas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Gastos Recientes -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg">
+                <h2 class="text-lg font-semibold mb-3 text-slate-800">💸 Gastos Recientes</h2>
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b text-slate-500 text-xs uppercase">
+                            <th class="pb-2">Concepto</th>
+                            <th class="pb-2">Monto</th>
+                            <th class="pb-2">Wallet de Salida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for g in gastos %}
+                        <tr class="border-b last:border-none text-xs">
+                            <td class="py-2 font-medium text-slate-800">{{ g.concepto }}</td>
+                            <td class="py-2 text-red-600 font-semibold">-${{ "%.2f"|format(g.monto) }}</td>
+                            <td class="py-2 text-slate-500">{{ g.billetera.nombre }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-3 text-center text-slate-400 italic text-xs">Sin gastos.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Transferencias Recientes -->
+            <div class="bg-white p-5 rounded-2xl shadow-lg">
+                <h2 class="text-lg font-semibold mb-3 text-slate-800">🔄 Transferencias entre Wallets</h2>
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b text-slate-500 text-xs uppercase">
+                            <th class="pb-2">Origen</th>
+                            <th class="pb-2">Destino</th>
+                            <th class="pb-2">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transferencias %}
+                        <tr class="border-b last:border-none text-xs">
+                            <td class="py-2 text-slate-700">{{ t.origen.nombre }}</td>
+                            <td class="py-2 text-slate-700 font-medium">➡️ {{ t.destino.nombre }}</td>
+                            <td class="py-2 text-purple-600 font-semibold">${{ "%.2f"|format(t.monto) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-3 text-center text-slate-400 italic text-xs">Sin transferencias.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
         </div>
     </div>
 </body>

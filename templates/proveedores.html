@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6 text-slate-900">Módulo de Proveedores</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="bg-white p-6 rounded-2xl shadow-md h-fit">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">🏭 Nuevo Proveedor</h2>
+        <form action="/agregar_proveedor" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Nombre / Empresa</label>
+                <input type="text" name="nombre_proveedor" required class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Teléfono</label>
+                <input type="text" name="telefono_proveedor" class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Persona de Contacto</label>
+                <input type="text" name="contacto_proveedor" class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+            <button type="submit" class="w-full bg-slate-800 text-white font-medium py-2 rounded-lg text-sm hover:bg-slate-900 transition">Guardar Proveedor</button>
+        </form>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">Directorio de Proveedores</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b text-xs text-slate-400 uppercase">
+                        <th class="pb-2">Proveedor</th>
+                        <th class="pb-2">Teléfono</th>
+                        <th class="pb-2">Contacto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in proveedores %}
+                    <tr class="border-b last:border-none">
+                        <td class="py-3 font-medium">{{ p.nombre }}</td>
+                        <td class="py-3 text-slate-600">{{ p.telefono or 'N/A' }}</td>
+                        <td class="py-3 text-slate-600">{{ p.contacto or 'N/A' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="py-4 text-center text-slate-400 italic text-sm">Sin proveedores registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

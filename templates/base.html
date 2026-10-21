@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluir Socket.IO cliente -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Cargar notificaciones almacenadas al iniciar
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const socket = io();
+            actualizarUIBuzon();
+
+            socket.on('notificacion_global', function(data) {
+                // 1. Mostrar toast flotante en pantalla
+                mostrarNotificacionToast(data.titulo, data.mensaje);
+                
+                // 2. Guardar en el historial de notificaciones (localStorage)
+                guardarNotificacionEnHistorial(data.titulo, data.mensaje);
+            });
+        });
+
+        function obtenerHistorialNotificaciones() {
+            let hist = localStorage.getItem('himalaya_notificaciones');
+            return hist ? JSON.parse(hist) : [];
+        }
+
+        function guardarNotificacionEnHistorial(titulo, mensaje) {
+            let hist = obtenerHistorialNotificaciones();
+            const nuevaAlerta = {
+                titulo: titulo,
+                mensaje: mensaje,
+                fecha: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                leida: false
+            };
+            // Agregar al inicio del arreglo
+            hist.unshift(nuevaAlerta);
+            // Mantener máximo las últimas 20 notificaciones
+            if (hist.length > 20) hist.pop();
+            
+            localStorage.setItem('himalaya_notificaciones', JSON.stringify(hist));
+            actualizarUIBuzon();
+        }
+
+        function actualizarUIBuzon() {
+            const hist = obtenerHistorialNotificaciones();
+            const contadorBadge = document.getElementById('notif-badge');
+            const listaContainer = document.getElementById('notif-list');
+            
+            // Contar no leídas
+            const noLeidas = hist.filter(n => !n.leida).length;
+            
+            if (noLeidas > 0) {
+                contadorBadge.innerText = noLeidas;
+                contadorBadge.classList.remove('hidden');
+            } else {
+                contadorBadge.classList.add('hidden');
+            }
+
+            // Renderizar lista en el menú desplegable
+            if (hist.length === 0) {
+                listaContainer.innerHTML = '<div class="p-4 text-xs text-slate-400 text-italic text-center">No hay notificaciones recientes.</div>';
+                return;
+            }
+
+            listaContainer.innerHTML = hist.map(n => `
+                <div class="p-3 border-b border-slate-100 last:border-none hover:bg-slate-50 transition ${n.leida ? 'opacity-70' : 'bg-emerald-50/30'}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-xs text-slate-900">${n.titulo}</span>
+                        <span class="text-[10px] text-slate-400">${n.fecha}</span>
+                    </div>
+                    <p class="text-xs text-slate-600">${n.mensaje}</p>
+                </div>
+            `).join('');
+        }
+
+        function toggleBuzonNotificaciones() {
+            const dropdown = document.getElementById('notif-dropdown');
+            dropdown.classList.toggle('hidden');
+
+            // Al abrir el buzón, marcamos todas como leídas
+            if (!dropdown.classList.contains('hidden')) {
+                let hist = obtenerHistorialNotificaciones();
+                hist.forEach(n => n.leida = true);
+                localStorage.setItem('himalaya_notificaciones', JSON.stringify(hist));
+                document.getElementById('notif-badge').classList.add('hidden');
+            }
+        }
+
+        function limpiarBuzon() {
+            localStorage.removeItem('himalaya_notificaciones');
+            actualizarUIBuzon();
+        }
+
+        function mostrarNotificacionToast(titulo, mensaje) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = "bg-slate-900 text-white p-4 rounded-xl shadow-2xl border-l-4 border-emerald-400 max-w-sm transition transform animate-bounce";
+            toast.innerHTML = `
+                <div class="font-bold text-xs uppercase tracking-wide text-emerald-400 mb-1">${titulo}</div>
+                <div class="text-xs text-slate-200">${mensaje}</div>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 6000);
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <!-- Contenedor flotante de notificaciones en vivo -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-3"></div>
+
+    <!-- Barra de Navegación -->
+    <nav class="bg-slate-900 text-white shadow-md relative">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
+            <div class="text-lg font-bold tracking-wide flex items-center gap-2">
+                🏔️ <span>{{ store_name }}</span>
+            </div>
+            <div class="flex gap-4 text-sm font-medium items-center flex-wrap">
+                <a href="{{ url_for('dashboard') }}" class="hover:text-emerald-400 transition">📊 Resumen</a>
+                <a href="{{ url_for('ventas') }}" class="hover:text-emerald-400 transition">🛒 Ventas</a>
+                <a href="{{ url_for('inventario') }}" class="hover:text-emerald-400 transition">📦 Inventario</a>
+                <a href="{{ url_for('proveedores') }}" class="hover:text-emerald-400 transition">🏭 Proveedores</a>
+                <a href="{{ url_for('finanzas') }}" class="hover:text-emerald-400 transition">💳 Wallets & Finanzas</a>
+                <a href="{{ url_for('clientes') }}" class="hover:text-emerald-400 transition">👤 Clientes</a>
+                <a href="{{ url_for('gestionar_usuarios') }}" class="hover:text-emerald-400 transition">👥 Usuarios</a>
+                
+                <!-- BOTÓN DE LA CAMPANITA DE NOTIFICACIONES -->
+                <div class="relative">
+                    <button onclick="toggleBuzonNotificaciones()" class="relative p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition focus:outline-none">
+                        🔔
+                        <span id="notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+                    </button>
+
+                    <!-- Menú Desplegable del Buzón -->
+                    <div id="notif-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 hidden z-50 overflow-hidden text-slate-800">
+                        <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
+                            <span class="text-xs font-bold uppercase tracking-wide">🔔 Historial de Alertas</span>
+                            <button onclick="limpiarBuzon()" class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded hover:bg-red-600 hover:text-white transition">Limpiar</button>
+                        </div>
+                        <div id="notif-list" class="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                            <!-- Aquí se inyectan las alertas -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Usuario y Salir -->
+                <div class="border-l border-slate-700 pl-4 flex items-center gap-2">
+                    <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">👤 {{ current_user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition">Salir</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-8 px-4">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
