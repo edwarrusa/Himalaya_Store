@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+    // Función blindada para redondear a 1 decimal hacia arriba
+    function redondearArribaUnDecimal(valor) {
+        return Math.ceil(Number((valor * 10).toFixed(2))) / 10;
+    }
+
+    function toggleRecargoBolivares(checkbox) {
+        const inputPorcentaje = document.getElementById('porcentaje_recargo');
+        const valorPorcentajeContainer = document.getElementById('valor-porcentaje-container');
+        
+        const conRecargo = checkbox.checked;
+
+        if (conRecargo) {
+            valorPorcentajeContainer.classList.remove('opacity-50', 'pointer-events-none');
+            inputPorcentaje.removeAttribute('disabled');
+        } else {
+            valorPorcentajeContainer.classList.add('opacity-50', 'pointer-events-none');
+            inputPorcentaje.setAttribute('disabled', 'true');
+        }
+
+        recalcularTotalesCotizacion();
+    }
+
+   function recalcularTotalesCotizacion() {
+        const checkbox = document.getElementById('switch-recargo');
+        const inputPorcentaje = document.getElementById('porcentaje_recargo');
+        const spanTotal = document.getElementById('total-visual');
+        const inputRecargoAplicado = document.getElementById('recargo_aplicado');
+        const inputPorcentajeUsado = document.getElementById('porcentaje_usado_form');
+        const filasProductos = document.querySelectorAll('.producto-fila-item');
+
+        const totalOriginal = parseFloat(spanTotal.getAttribute('data-original'));
+        const conRecargo = checkbox.checked;
+        const porcentaje = conRecargo ? parseFloat(inputPorcentaje.value || 0) : 0;
+
+        if (inputRecargoAplicado) inputRecargoAplicado.value = conRecargo ? "1" : "0";
+        if (inputPorcentajeUsado) inputPorcentajeUsado.value = porcentaje;
+
+        const factor = 1 + (porcentaje / 100);
+
+        let sumaTotalCalculada = 0;
+
+        // Actualizar filas individuales de la tabla
+        filasProductos.forEach(fila => {
+            const spanPrecioUnit = fila.querySelector('.precio-unit');
+            const spanSubtotal = fila.querySelector('.subtotal-item');
+
+            const precioOrig = parseFloat(spanPrecioUnit.getAttribute('data-precio-orig'));
+            
+            // Extraer la cantidad desde la segunda columna de la fila
+            const cantidad = parseFloat(fila.querySelector('td:nth-child(2)').innerText);
+
+            // Calcular precio unitario con redondeo hacia arriba a 1 decimal
+            const precioCalculado = redondearArribaUnDecimal(precioOrig * factor);
+            
+            // El subtotal es estrictamente la cantidad por el precio unitario calculado
+            const subtotalCalculado = redondearArribaUnDecimal(cantidad * precioCalculado);
+
+            sumaTotalCalculada += subtotalCalculado;
+
+            spanPrecioUnit.innerText = '$' + precioCalculado.toFixed(1);
+            spanSubtotal.innerText = '$' + subtotalCalculado.toFixed(1);
+        });
+
+        // Reflejar el total final sumando los subtotales exactos de las filas
+        const totalFinal = conRecargo ? redondearArribaUnDecimal(sumaTotalCalculada) : totalOriginal;
+        spanTotal.innerText = '$' + totalFinal.toFixed(1);
+    }
+</script>
+
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+    <!-- Cabecera Presupuesto -->
+    <div class="flex justify-between items-start border-b pb-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">🏔️ {{ store_name }}</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Cotización / Presupuesto Comercial</p>
+        </div>
+        <div class="text-right">
+            <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full">Cotización #{{ cotizacion.id }}</span>
+            <p class="text-xs text-slate-400 mt-1">Emitida: {{ cotizacion.fecha.strftime('%Y-%m-%d') }}</p>
+            <p class="text-xs text-amber-600 font-semibold mt-0.5">Validez: {{ cotizacion.validez_dias }} días</p>
+        </div>
+    </div>
+
+    <!-- Datos del Cliente -->
+    <div class="bg-slate-50 p-4 rounded-xl mb-6 text-xs">
+        <span class="text-slate-400 block uppercase font-semibold mb-0.5">Dirigido a:</span>
+        <span class="font-bold text-slate-800 text-sm">{{ cotizacion.cliente.nombre }}</span>
+        {% if cotizacion.cliente.telefono %}<p class="text-slate-600">Tel: {{ cotizacion.cliente.telefono }}</p>{% endif %}
+        {% if cotizacion.cliente.direccion %}<p class="text-slate-600">Dir: {{ cotizacion.cliente.direccion }}</p>{% endif %}
+    </div>
+
+    <!-- Tabla de Artículos -->
+    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">Artículos Cotizados</h2>
+    <div class="overflow-x-auto mb-6">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b text-xs text-slate-400 uppercase">
+                    <th class="pb-2">Producto</th>
+                    <th class="pb-2 text-center">Cantidad</th>
+                    <th class="pb-2 text-right">Precio Unit.</th>
+                    <th class="pb-2 text-right">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in cotizacion.detalles %}
+                <tr class="border-b last:border-none producto-fila-item">
+                    <td class="py-3 font-medium text-slate-800">{{ d.producto.nombre }}</td>
+                    <td class="py-3 text-center text-slate-600">{{ d.cantidad }}</td>
+                    <td class="py-3 text-right text-slate-600 precio-unit" data-precio-orig="{{ d.precio_unitario }}">
+                        ${{ "%.2f"|format(d.precio_unitario) }}
+                    </td>
+                    <td class="py-3 text-right font-semibold text-slate-900 subtotal-item" data-sub-orig="{{ d.cantidad * d.precio_unitario }}">
+                        ${{ "%.2f"|format(d.cantidad * d.precio_unitario) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Total -->
+    <div class="flex justify-between items-center bg-slate-900 text-white p-4 rounded-xl mb-6">
+        <span class="text-sm font-semibold uppercase tracking-wider">Total Cotizado:</span>
+        <span id="total-visual" class="text-2xl font-bold text-indigo-400" data-original="{{ cotizacion.total }}">
+            ${{ "%.2f"|format(cotizacion.total) }}
+        </span>
+    </div>
+
+    <!-- SELECTOR DE RECARGO EN BOLÍVARES CON PORCENTAJE EDITABLE (Oculto al imprimir) -->
+    <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
+        <div>
+            <span class="font-bold text-amber-900 text-xs block">💱 Ajuste de Pago en Bolívares (Porcentaje Editable)</span>
+            <p class="text-[11px] text-amber-700">Activa el switch y ajusta el porcentaje de recargo deseado.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Input de porcentaje modificable al lado -->
+            <div id="valor-porcentaje-container" class="flex items-center gap-1 opacity-50 pointer-events-none transition">
+                <input type="number" id="porcentaje_recargo" value="15" min="0" step="0.5" oninput="recalcularTotalesCotizacion()" disabled class="w-16 px-2 py-1 border border-amber-300 rounded text-xs text-center font-bold bg-white text-amber-900">
+                <span class="text-xs font-bold text-amber-800">%</span>
+            </div>
+
+            <!-- Interruptor (Chulo) -->
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="switch-recargo" onchange="toggleRecargoBolivares(this)" class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+            </label>
+        </div>
+    </div>
+
+    {% if cotizacion.estado == 'Pendiente' %}
+    <!-- Formulario para convertir en venta (Oculto al imprimir) -->
+    <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-xl mb-6 print:hidden">
+        <h3 class="font-bold text-emerald-900 text-sm mb-2">💰 ¿El cliente pagó esta cotización?</h3>
+        <p class="text-xs text-emerald-700 mb-3">Al aprobar, se registrará la venta con el precio original oficial de inventario:</p>
+        <form action="{{ url_for('convertir_cotizacion', id=cotizacion.id) }}" method="POST" class="flex gap-3">
+            <input type="hidden" id="recargo_aplicado" name="recargo_aplicado" value="0">
+            <input type="hidden" id="porcentaje_usado_form" name="porcentaje_usado" value="0">
+            <select name="billetera_id" required class="w-2/3 px-3 py-2 border rounded-lg text-xs bg-white">
+                <option value="">Seleccione wallet de cobro</option>
+                {% for b in billeteras %}
+                <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="w-1/3 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-700 transition shadow">Aprobar y Vender</button>
+        </form>
+    </div>
+    {% else %}
+    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl mb-6 text-center text-xs text-blue-800 font-semibold print:hidden">
+        ✅ Esta cotización ya fue aprobada y convertida en venta oficial.
+    </div>
+    {% endif %}
+
+    <!-- Botones de Acción (Ocultos al imprimir) -->
+    <div class="flex gap-3 print:hidden">
+        <a href="{{ url_for('cotizaciones') }}" class="w-1/2 bg-slate-100 text-slate-700 py-2.5 rounded-xl text-center text-xs font-semibold hover:bg-slate-200 transition">← Volver al listado</a>
+        <button onclick="window.print()" class="w-1/2 bg-slate-900 text-white py-2.5 rounded-xl text-center text-xs font-semibold hover:bg-slate-800 transition">🖨️ Imprimir Cotización</button>
+    </div>
+</div>
+{% endblock %}

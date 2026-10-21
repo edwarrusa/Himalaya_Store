@@ -1,105 +1,182 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-6 text-slate-900">Control Financiero & Wallets</h1>
+<h1 class="text-2xl font-bold mb-6 text-slate-900">Módulo de Finanzas y Wallets</h1>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <!-- Crear Billetera -->
-    <div class="bg-white p-5 rounded-2xl shadow-md">
-        <h2 class="text-sm font-semibold mb-3 text-slate-800">💳 Nueva Billetera / Socio</h2>
-        <form action="/agregar_billetera" method="POST" class="space-y-3">
-            <input type="text" name="nombre_billetera" placeholder="Ej: Zelle Socio A" required class="w-full px-3 py-2 border rounded-lg text-sm">
-            <button type="submit" class="w-full bg-slate-800 text-white py-2 rounded-lg text-xs hover:bg-slate-900 transition">Crear Billetera</button>
-        </form>
-    </div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    <!-- Formularios de Registro (Nueva Billetera, Gasto, Transferencia) -->
+    <div class="space-y-6">
+        <!-- Registrar Gasto -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800">💸 Registrar Gasto</h2>
+            <form action="/registrar_gasto" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                    <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Concepto</label>
+                    <input type="text" name="concepto" placeholder="Ej. Pago de Internet, Alquiler..." required class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Monto ($)</label>
+                    <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Descontar de Wallet</label>
+                    <select name="billetera_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        <option value="">Seleccione wallet</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-red-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-red-700 transition">Registrar Gasto</button>
+            </form>
+        </div>
 
-    <!-- Registrar Gasto -->
-    <div class="bg-white p-5 rounded-2xl shadow-md border-2 border-red-500/20">
-        <h2 class="text-sm font-semibold mb-3 text-slate-800">💸 Registrar Gasto</h2>
-        <form action="/registrar_gasto" method="POST" class="space-y-2.5">
-            <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-2 py-1.5 border rounded text-xs bg-white">
-            <input type="text" name="concepto" placeholder="Concepto (ej. Encomienda)" required class="w-full px-2 py-1.5 border rounded text-xs">
-            <input type="number" step="0.01" name="monto" placeholder="Monto ($)" required class="w-full px-2 py-1.5 border rounded text-xs">
-            <select name="billetera_id" required class="w-full px-2 py-1.5 border rounded text-xs bg-white">
-                <option value="">Wallet de salida</option>
-                {% for b in billeteras %}
-                <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="w-full bg-red-600 text-white py-1.5 rounded text-xs hover:bg-red-700 transition">Registrar Gasto</button>
-        </form>
-    </div>
+        <!-- Registrar Transferencia -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800">🔄 Transferir entre Wallets</h2>
+            <form action="/registrar_transferencia" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                    <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Wallet Origen</label>
+                    <select name="origen_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        <option value="">Origen</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Wallet Destino</label>
+                    <select name="destino_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        <option value="">Destino</option>
+                        {% for b in billeteras %}
+                        <option value="{{ b.id }}">{{ b.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Monto a Transferir ($)</label>
+                    <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <button type="submit" class="w-full bg-slate-800 text-white font-medium py-2 rounded-lg text-sm hover:bg-slate-900 transition">Realizar Transferencia</button>
+            </form>
+        </div>
 
-    <!-- Registrar Transferencia -->
-    <div class="bg-white p-5 rounded-2xl shadow-md border-2 border-purple-500/20">
-        <h2 class="text-sm font-semibold mb-3 text-slate-800">🔄 Transferencia entre Wallets</h2>
-        <form action="/registrar_transferencia" method="POST" class="space-y-2.5">
-            <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-2 py-1.5 border rounded text-xs bg-white">
-            <select name="origen_id" required class="w-full px-2 py-1.5 border rounded text-xs bg-white">
-                <option value="">Wallet Origen</option>
-                {% for b in billeteras %}
-                <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
-                {% endfor %}
-            </select>
-            <select name="destino_id" required class="w-full px-2.5 py-1.5 border rounded text-xs bg-white">
-                <option value="">Wallet Destino</option>
-                {% for b in billeteras %}
-                <option value="{{ b.id }}">{{ b.nombre }}</option>
-                {% endfor %}
-            </select>
-            <input type="number" step="0.01" name="monto" placeholder="Monto ($)" required class="w-full px-2 py-1.5 border rounded text-xs">
-            <button type="submit" class="w-full bg-purple-600 text-white py-1.5 rounded text-xs hover:bg-purple-700 transition">Transferir</button>
-        </form>
-    </div>
-</div>
-
-<!-- Sección de Seguimiento / Estado de Cuenta de Billeteras -->
-<div class="bg-white p-6 rounded-2xl shadow-md mb-8">
-    <div class="flex flex-wrap justify-between items-center mb-6">
-        <h2 class="text-lg font-semibold text-slate-800">📊 Estado de Cuenta y Movimientos por Billetera</h2>
-        
-        <!-- Pestañas Selectoras de Billetera -->
-        <div class="flex gap-2 flex-wrap mt-2 sm:mt-0">
-            {% for b in billeteras %}
-            <a href="{{ url_for('finanzas', wallet_id=b.id) }}" class="px-4 py-2 rounded-xl text-xs font-semibold transition {% if selected_wallet and selected_wallet.id == b.id %}bg-slate-900 text-white shadow{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
-                {{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})
-            </a>
-            {% endfor %}
+        <!-- Nueva Billetera -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800">💳 Crear Nueva Wallet</h2>
+            <form action="/agregar_billetera" method="POST" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Nombre de la Wallet</label>
+                    <input type="text" name="nombre_billetera" placeholder="Ej. Zelle, Efectivo USD, Binance..." required class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-emerald-700 transition">Crear Wallet</button>
+            </form>
         </div>
     </div>
 
-    {% if selected_wallet %}
-    <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-            <thead>
-                <tr class="border-b text-xs text-slate-400 uppercase">
-                    <th class="pb-2">Fecha</th>
-                    <th class="pb-2">Tipo de Movimiento</th>
-                    <th class="pb-2">Descripción</th>
-                    <th class="pb-2 text-right">Monto</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in selected_wallet.movimientos %}
-                <tr class="border-b last:border-none text-xs">
-                    <td class="py-2.5 text-slate-500">{{ m.fecha.strftime('%Y-%m-%d') }}</td>
-                    <td class="py-2.5 font-medium">
-                        <span class="px-2 py-1 rounded {% if m.es_ingreso %}bg-emerald-100 text-emerald-800{% else %}bg-red-100 text-red-800{% endif %}">
-                            {{ m.tipo }}
-                        </span>
-                    </td>
-                    <td class="py-2.5 text-slate-700">{{ m.descripcion }}</td>
-                    <td class="py-2.5 text-right font-bold {% if m.es_ingreso %}text-emerald-600{% else %}text-red-600{% endif %}">
-                        {% if m.es_ingreso %}+{% else %}-{% endif %}${{ "%.2f"|format(m.monto) }}
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4" class="py-4 text-center text-slate-400 italic">No hay movimientos registrados en esta billetera.</td></tr>
+    <!-- Panel de Billeteras y Detalles -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Resumen de Wallets -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800">Billeteras Activas</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for b in billeteras %}
+                <div class="border rounded-xl p-4 bg-slate-50 flex flex-col justify-between">
+                    <div>
+                        <div class="font-bold text-slate-800 text-base mb-1">🔹 {{ b.nombre }}</div>
+                        <div class="text-2xl font-bold text-emerald-600">${{ "%.2f"|format(b.saldo) }}</div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t flex justify-between items-center text-xs">
+                        <a href="{{ url_for('finanzas', wallet_id=b.id) }}" class="text-blue-600 font-semibold hover:underline">Ver detalle exclusivo →</a>
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+        </div>
+
+        <!-- HISTORIAL GENERAL CONSOLIDADO DE TODA LA TIENDA -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-800">📊 Historial General Consolidado (Todas las Wallets)</h2>
+                <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold">Total Movimientos: {{ movimientos_globales|length }}</span>
+            </div>
+            
+            <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="sticky top-0 bg-white shadow-sm">
+                        <tr class="border-b text-xs text-slate-400 uppercase">
+                            <th class="pb-2">Fecha</th>
+                            <th class="pb-2">Tipo</th>
+                            <th class="pb-2">Wallet</th>
+                            <th class="pb-2">Descripción</th>
+                            <th class="pb-2 text-right">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movimientos_globales %}
+                        <tr class="border-b last:border-none text-xs">
+                            <td class="py-2.5 text-slate-500 whitespace-nowrap">{{ m.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="py-2.5 font-semibold">
+                                {% if m.es_ingreso %}
+                                <span class="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{{ m.tipo }}</span>
+                                {% else %}
+                                <span class="text-red-600 bg-red-50 px-2 py-0.5 rounded">{{ m.tipo }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2.5 font-medium text-slate-700">🔹 {{ m.billetera }}</td>
+                            <td class="py-2.5 text-slate-600">{{ m.descripcion }}</td>
+                            <td class="py-2.5 text-right font-bold {{ 'text-emerald-600' if m.es_ingreso else 'text-red-600' }}">
+                                {{ '+' if m.es_ingreso else '-' }}${{ "%.2f"|format(m.monto) }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="py-4 text-center text-slate-400 italic">No hay movimientos financieros registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detalle de Wallet Seleccionada (Si el usuario hizo clic en una en específico) -->
+        {% if selected_wallet %}
+        <div class="bg-white p-6 rounded-2xl shadow-md border-2 border-blue-500">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-800">Detalle Exclusivo de Wallet: <span class="text-blue-600">{{ selected_wallet.nombre }}</span></h2>
+                <a href="{{ url_for('finanzas') }}" class="text-xs text-slate-500 hover:text-slate-800 underline">✕ Cerrar detalle</a>
+            </div>
+            <div class="overflow-x-auto max-h-72 overflow-y-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="border-b text-xs text-slate-400 uppercase">
+                            <th class="pb-2">Fecha</th>
+                            <th class="pb-2">Tipo</th>
+                            <th class="pb-2">Descripción</th>
+                            <th class="pb-2 text-right">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in selected_wallet.movimientos %}
+                        <tr class="border-b last:border-none text-xs">
+                            <td class="py-2 text-slate-500">{{ m.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="py-2 font-semibold {{ 'text-emerald-600' if m.es_ingreso else 'text-red-600' }}">{{ m.tipo }}</td>
+                            <td class="py-2 text-slate-600">{{ m.descripcion }}</td>
+                            <td class="py-2 text-right font-bold {{ 'text-emerald-600' if m.es_ingreso else 'text-red-600' }}">
+                                {{ '+' if m.es_ingreso else '-' }}${{ "%.2f"|format(m.monto) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
-    {% else %}
-    <p class="text-sm text-slate-400 italic">Crea una billetera para ver sus movimientos.</p>
-    {% endif %}
 </div>
 {% endblock %}

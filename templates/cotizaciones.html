@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+    function agregarFilaProducto() {
+        const container = document.getElementById('productos-cot-container');
+        const primeraFila = container.querySelector('.producto-fila');
+        const nuevaFila = primeraFila.cloneNode(true);
+        nuevaFila.querySelector('select').value = "";
+        nuevaFila.querySelector('input').value = "1";
+        container.appendChild(nuevaFila);
+    }
+    function eliminarFila(button) {
+        const container = document.getElementById('productos-cot-container');
+        if (container.querySelectorAll('.producto-fila').length > 1) {
+            button.closest('.producto-fila').remove();
+        }
+    }
+</script>
+
+<h1 class="text-2xl font-bold mb-6 text-slate-900">Módulo de Cotizaciones / Presupuestos</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Formulario para Nueva Cotización -->
+    <div class="bg-white p-6 rounded-2xl shadow-md h-fit">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">📄 Nueva Cotización</h2>
+        <form action="/registrar_cotizacion" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Cliente</label>
+                <select name="cliente_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Seleccione cliente</option>
+                    {% for c in clientes %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Validez (Días)</label>
+                <input type="number" name="validez_dias" value="7" min="1" required class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Productos</label>
+                <div id="productos-cot-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <div class="producto-fila flex gap-2 items-center">
+                        <select name="producto_id[]" required class="w-3/5 px-2 py-1.5 border rounded text-xs bg-white">
+                            <option value="">Producto</option>
+                            {% for p in productos %}
+                            <option value="{{ p.id }}">{{ p.nombre }} (${{ p.precio }})</option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="cantidad[]" min="1" value="1" required class="w-1/5 px-2 py-1.5 border rounded text-xs text-center">
+                        <button type="button" onclick="eliminarFila(this)" class="w-1/5 text-red-500 hover:text-red-700 font-bold text-xs">✕</button>
+                    </div>
+                </div>
+                <button type="button" onclick="agregarFilaProducto()" class="mt-2 w-full bg-slate-100 text-slate-700 py-1.5 rounded-lg text-xs hover:bg-slate-200 transition">+ Añadir otro producto</button>
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-indigo-700 transition">Generar Cotización</button>
+        </form>
+    </div>
+
+    <!-- Historial de Cotizaciones -->
+    <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">Historial de Cotizaciones</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b text-xs text-slate-400 uppercase">
+                        <th class="pb-2">Cot #</th>
+                        <th class="pb-2">Fecha</th>
+                        <th class="pb-2">Cliente</th>
+                        <th class="pb-2">Total</th>
+                        <th class="pb-2">Estado</th>
+                        <th class="pb-2 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cot in cotizaciones %}
+                    <tr class="border-b last:border-none align-middle">
+                        <td class="py-3 font-bold text-slate-700">#{{ cot.id }}</td>
+                        <td class="py-3 text-xs text-slate-500">{{ cot.fecha.strftime('%Y-%m-%d') }}</td>
+                        <td class="py-3 font-medium">{{ cot.cliente.nombre }}</td>
+                        <td class="py-3 font-semibold text-indigo-600">${{ "%.2f"|format(cot.total) }}</td>
+                        <td class="py-3 text-xs">
+                            {% if cot.estado == 'Pendiente' %}
+                            <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded font-semibold">Pendiente</span>
+                            {% else %}
+                            <span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">Convertida</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 text-right space-x-2">
+                            <a href="{{ url_for('detalle_cotizacion', id=cot.id) }}" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-slate-800 transition shadow">Ver / Enviar</a>
+                            {% if cot.estado == 'Pendiente' %}
+                            <form action="{{ url_for('eliminar_cotizacion', id=cot.id) }}" method="POST" class="inline">
+                                <button type="submit" onclick="return confirm('¿Eliminar esta cotización?')" class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1">Eliminar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="py-4 text-center text-slate-400 italic text-sm">No hay cotizaciones registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

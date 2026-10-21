@@ -155,6 +155,30 @@ class Transferencia(db.Model):
     monto = db.Column(db.Float, nullable=False)
     fecha = db.Column(db.DateTime, nullable=False)
 
+class Cotizacion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    estado = db.Column(db.String(50), default='Pendiente')
+    total = db.Column(db.Float, nullable=False, default=0.0)
+    fecha = db.Column(db.DateTime, nullable=False)
+    validez_dias = db.Column(db.Integer, default=7)
+    
+    # 🔹 Añadir esta línea para vincular la relación con el cliente:
+    cliente = db.relationship('Cliente', backref='cotizaciones', lazy=True)
+    
+    detalles = db.relationship('DetalleCotizacion', backref='cotizacion', cascade="all, delete-orphan", lazy=True)
+
+class DetalleCotizacion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    cotizacion_id = db.Column(db.Integer, db.ForeignKey('cotizacion.id'), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False)
+    precio_unitario = db.Column(db.Float, nullable=False)
+    
+    # 🔹 Añadir esta línea para vincular la relación con el producto:
+    producto = db.relationship('Producto', backref='detalles_cotizacion', lazy=True)
+
 with app.app_context():
     db.create_all()
     # Crear un usuario administrador por defecto si no existe ninguno
@@ -269,7 +293,19 @@ def finanzas():
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     wallet_seleccionada = request.args.get('wallet_id', type=int)
     
-    selected_wallet = Billetera.query.get(wallet_seleccionada) if wallet_seleccionada else (billeteras[0] if billeteras else None)
+    selected_wallet = Billetera.query.get(wallet_seleccionada) if wallet_seleccionada else None
+
+    # Generar listado general consolidado de todas las operaciones financieras
+    movimientos_globales = []
+    for b in billeteras:
+        for m in b.movimientos:
+            # Añadimos el nombre de la billetera al diccionario del movimiento
+            m_copia = m.copy()
+            m_copia['billetera'] = b.nombre
+            movimientos_globales.append(m_copia)
+    
+    # Ordenar todos los movimientos globales por fecha descendente
+    movimientos_globales.sort(key=lambda x: x['fecha'], reverse=True)
 
     return render_template('finanzas.html', 
                            store_name="Himalaya Store SC", 
@@ -277,7 +313,8 @@ def finanzas():
                            gastos=gastos, 
                            transferencias=transferencias, 
                            fecha_hoy=fecha_hoy,
-                           selected_wallet=selected_wallet)
+                           selected_wallet=selected_wallet,
+                           movimientos_globales=movimientos_globales)
 
 # --- ACCIONES (CON EMISIÓN DE NOTIFICACIONES WEBSOCKET) ---
 
@@ -446,6 +483,111 @@ def registrar_transferencia():
 def detalle_venta(id):
     venta = Venta.query.get_or_404(id)
     return render_template('detalle_venta.html', store_name="Himalaya Store SC", venta=venta)
+
+@app.route('/cotizaciones')
+@login_required
+def cotizaciones():
+    productos = Producto.query.all()
+    clientes = Cliente.query.all()
+    billeteras = Billetera.query.all()
+    lista_cotizaciones = Cotizacion.query.order_by(Cotizacion.fecha.desc()).all()
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    return render_template('cotizaciones.html', store_name="Himalaya Store SC", productos=productos, clientes=clientes, billeteras=billeteras, cotizaciones=lista_cotizaciones, fecha_hoy=fecha_hoy)
+
+@app.route('/registrar_cotizacion', methods=['POST'])
+@login_required
+def registrar_cotizacion():
+    cliente_id = request.form.get('cliente_id')
+    validez = int(request.form.get('validez_dias', 7))
+    fecha_str = request.form.get('fecha')
+    productos_ids = request.form.getlist('producto_id[]')
+    cantidades = request.form.getlist('cantidad[]')
+    
+    fecha_cot = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
+    if not cliente_id or not productos_ids:
+        return redirect(url_for('cotizaciones'))
+
+    nueva_cot = Cotizacion(cliente_id=int(cliente_id), usuario_id=current_user.id, validez_dias=validez, total=0.0, fecha=fecha_cot, estado='Pendiente')
+    db.session.add(nueva_cot)
+    db.session.flush()
+
+    total_cot = 0.0
+    for p_id, cant in zip(productos_ids, cantidades):
+        if p_id and cant:
+            producto = Producto.query.get(int(p_id))
+            cantidad = int(cant)
+            if producto and cantidad > 0:
+                subtotal = producto.precio * cantidad
+                total_cot += subtotal
+                db.session.add(DetalleCotizacion(cotizacion_id=nueva_cot.id, producto_id=producto.id, cantidad=cantidad, precio_unitario=producto.precio))
+
+    nueva_cot.total = total_cot
+    db.session.commit()
+    return redirect(url_for('cotizaciones'))
+
+@app.route('/cotizacion/<int:id>')
+@login_required
+def detalle_cotizacion(id):
+    cotizacion = Cotizacion.query.get_or_404(id)
+    billeteras = Billetera.query.all()
+    return render_template('detalle_cotizacion.html', store_name="Himalaya Store SC", cotizacion=cotizacion, billeteras=billeteras)
+
+@app.route('/cotizacion/<int:id>/convertir', methods=['POST'])
+@login_required
+def convertir_cotizacion(id):
+    cotizacion = Cotizacion.query.get_or_404(id)
+    billetera_id = request.form.get('billetera_id')
+    
+    if cotizacion.estado != 'Pendiente' or not billetera_id:
+        return redirect(url_for('detalle_cotizacion', id=id))
+
+    # Verificar stock antes de convertir
+    for d in cotizacion.detalles:
+        if d.producto.stock_actual < d.cantidad:
+            flash(f'Stock insuficiente para el producto: {d.producto.nombre}', 'error')
+            return redirect(url_for('detalle_cotizacion', id=id))
+
+    # Crear la Venta oficial
+    nueva_venta = Venta(
+        cliente_id=cotizacion.cliente_id,
+        billetera_id=int(billetera_id),
+        usuario_id=current_user.id,
+        total=cotizacion.total,
+        fecha=datetime.utcnow()
+    )
+    db.session.add(nueva_venta)
+    db.session.flush()
+
+    # Descontar inventario y crear detalles de venta
+    for d in cotizacion.detalles:
+        producto = d.producto
+        producto.stock_actual -= d.cantidad
+        db.session.add(DetalleVenta(
+            venta_id=nueva_venta.id,
+            producto_id=producto.id,
+            cantidad=d.cantidad,
+            precio_unitario=d.precio_unitario
+        ))
+
+    cotizacion.estado = 'Aprobada (Convertida a Venta)'
+    db.session.commit()
+
+    # Notificar globalmente a los demás usuarios
+    socketio.emit('notificacion_global', {
+        'titulo': '🎯 Cotización Convertida en Venta',
+        'mensaje': f'{current_user.username} convirtió la cotización #{cotizacion.id} en venta por ${cotizacion.total:.2f}.'
+    })
+
+    return redirect(url_for('ventas'))
+
+@app.route('/cotizacion/<int:id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_cotizacion(id):
+    cot = Cotizacion.query.get_or_404(id)
+    if cot.estado == 'Pendiente':
+        db.session.delete(cot)
+        db.session.commit()
+    return redirect(url_for('cotizaciones'))
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=5000)
