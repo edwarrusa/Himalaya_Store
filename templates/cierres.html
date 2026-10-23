@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6 text-slate-900">📊 Módulo de Cierre de Mes</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Formulario para Ejecutar Cierre -->
+    <div class="bg-white p-6 rounded-2xl shadow-md h-fit">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">📅 Generar Cierre Contable</h2>
+        <p class="text-xs text-slate-500 mb-4">Selecciona el año y mes que deseas consolidar. Esto generará un reporte oficial con el resumen de ventas, gastos y estado de wallets.</p>
+        
+        <form action="/realizar_cierre" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Año</label>
+                <input type="number" name="anio" value="{{ fecha_hoy.year }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white font-semibold">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Mes</label>
+                <select name="mes" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Seleccione mes</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg text-sm hover:bg-indigo-700 transition shadow">Generar Cierre de Mes</button>
+        </form>
+    </div>
+
+    <!-- Historial de Cierres -->
+   <!-- Historial de Cierres -->
+    <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800">Historial de Periodos Cerrados</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b text-xs text-slate-400 uppercase">
+                        <th class="pb-2">Periodo</th>
+                        <th class="pb-2 text-right">Total Ventas</th>
+                        <th class="pb-2 text-right">Total Gastos</th>
+                        <th class="pb-2">Responsable</th>
+                        <th class="pb-2 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in cierres %}
+                    <tr class="border-b last:border-none align-middle">
+                        <td class="py-3 font-bold text-slate-800">
+                            {% set meses = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"] %}
+                            📈 {{ meses[c.mes] }} {{ c.anio }}
+                        </td>
+                        <td class="py-3 text-right font-semibold text-emerald-600">${{ "%.2f"|format(c.total_ventas) }}</td>
+                        <td class="py-3 text-right font-semibold text-red-600">${{ "%.2f"|format(c.total_gastos) }}</td>
+                        <td class="py-3 text-xs text-slate-500">{{ c.usuario.username }}</td>
+                        <td class="py-3 text-right flex justify-end gap-2">
+                            <a href="{{ url_for('reporte_cierre', id=c.id) }}" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-slate-800 transition shadow">📄 Ver</a>
+                            
+                            <form action="{{ url_for('eliminar_cierre', id=c.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar este registro de cierre?');">
+                                <button type="submit" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-red-700 transition shadow">🗑️ Borrar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="py-4 text-center text-slate-400 italic text-sm">No hay periodos cerrados registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

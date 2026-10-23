@@ -179,6 +179,17 @@ class DetalleCotizacion(db.Model):
     # 🔹 Añadir esta línea para vincular la relación con el producto:
     producto = db.relationship('Producto', backref='detalles_cotizacion', lazy=True)
 
+class CierreMensual(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    anio = db.Column(db.Integer, nullable=False)
+    mes = db.Column(db.Integer, nullable=False)
+    fecha_cierre = db.Column(db.DateTime, default=datetime.utcnow)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    total_ventas = db.Column(db.Float, default=0.0)
+    total_gastos = db.Column(db.Float, default=0.0)
+    
+    usuario = db.relationship('Usuario', backref='cierres_realizados', lazy=True)
+
 with app.app_context():
     db.create_all()
     # Crear un usuario administrador por defecto si no existe ninguno
@@ -589,6 +600,84 @@ def eliminar_cotizacion(id):
         db.session.delete(cot)
         db.session.commit()
     return redirect(url_for('cotizaciones'))
+
+@app.route('/cierres')
+@login_required
+def cierres():
+    lista_cierres = CierreMensual.query.order_by(CierreMensual.anio.desc(), CierreMensual.mes.desc()).all()
+    fecha_hoy = datetime.now()
+    return render_template('cierres.html', store_name="Himalaya Store SC", cierres=lista_cierres, fecha_hoy=fecha_hoy)
+
+@app.route('/realizar_cierre', methods=['POST'])
+@login_required
+def realizar_cierre():
+    anio = int(request.form.get('anio'))
+    mes = int(request.form.get('mes'))
+    
+    # Calcular ventas del mes seleccionado
+    ventas_mes = Venta.query.filter(
+        db.extract('year', Venta.fecha) == anio,
+        db.extract('month', Venta.fecha) == mes
+    ).all()
+    total_v = sum(v.total for v in ventas_mes)
+
+    # Calcular gastos del mes seleccionado
+    gastos_mes = Gasto.query.filter(
+        db.extract('year', Gasto.fecha) == anio,
+        db.extract('month', Gasto.fecha) == mes
+    ).all()
+    total_g = sum(g.monto for g in gastos_mes)
+
+    # Registrar el cierre en el historial
+    nuevo_cierre = CierreMensual(
+        anio=anio,
+        mes=mes,
+        usuario_id=current_user.id,
+        total_ventas=total_v,
+        total_gastos=total_g
+    )
+    db.session.add(nuevo_cierre)
+    db.session.commit()
+
+    flash(f'Cierre contable del periodo {mes}/{anio} generado exitosamente.', 'success')
+    return redirect(url_for('cierres'))
+
+@app.route('/cierre/<int:id>/reporte')
+@login_required
+def reporte_cierre(id):
+    cierre = CierreMensual.query.get_or_404(id)
+    
+    ventas_mes = Venta.query.filter(
+        db.extract('year', Venta.fecha) == cierre.anio,
+        db.extract('month', Venta.fecha) == cierre.mes
+    ).order_by(Venta.fecha.desc()).all()
+
+    gastos_mes = Gasto.query.filter(
+        db.extract('year', Gasto.fecha) == cierre.anio,
+        db.extract('month', Gasto.fecha) == cierre.mes
+    ).order_by(Gasto.fecha.desc()).all()
+
+    billeteras = Billetera.query.all()
+
+    meses_nombres = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    nombre_mes = meses_nombres[cierre.mes] if 1 <= cierre.mes <= 12 else str(cierre.mes)
+
+    return render_template('reporte_cierre.html', 
+                           store_name="Himalaya Store SC", 
+                           cierre=cierre, 
+                           nombre_mes=nombre_mes,
+                           ventas=ventas_mes, 
+                           gastos=gastos_mes,
+                           billeteras=billeteras)   
+
+@app.route('/cierre/<int:id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_cierre(id):
+    cierre = CierreMensual.query.get_or_404(id)
+    db.session.delete(cierre)
+    db.session.commit()
+    flash('Cierre contable eliminado correctamente del historial.', 'success')
+    return redirect(url_for('cierres'))
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=5000)

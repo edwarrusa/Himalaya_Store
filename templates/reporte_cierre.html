@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+    <!-- Cabecera del Reporte -->
+    <div class="flex justify-between items-start border-b pb-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">🏔️ {{ store_name }}</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Reporte Oficial de Cierre Contable</p>
+        </div>
+        <div class="text-right">
+            <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full">Periodo: {{ nombre_mes }} {{ cierre.anio }}</span>
+            <p class="text-xs text-slate-400 mt-1">Generado el: {{ cierre.fecha_cierre.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p class="text-xs text-slate-500">Responsable: {{ cierre.usuario.username }}</p>
+        </div>
+    </div>
+
+    <!-- Resumen Financiero del Periodo -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+            <span class="text-xs font-semibold text-emerald-800 uppercase block">Total Ventas del Mes</span>
+            <span class="text-2xl font-bold text-emerald-600">${{ "%.2f"|format(cierre.total_ventas) }}</span>
+        </div>
+        <div class="bg-red-50 border border-red-200 p-4 rounded-xl">
+            <span class="text-xs font-semibold text-red-800 uppercase block">Total Gastos del Mes</span>
+            <span class="text-2xl font-bold text-red-600">${{ "%.2f"|format(cierre.total_gastos) }}</span>
+        </div>
+    </div>
+
+    <!-- Estado Actual de las Wallets -->
+    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">Estado de Wallets (Globales)</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        {% for b in billeteras %}
+        <div class="border rounded-xl p-3 bg-slate-50">
+            <div class="text-xs font-bold text-slate-700">🔹 {{ b.nombre }}</div>
+            <div class="text-base font-bold text-emerald-600 mt-1">${{ "%.2f"|format(b.saldo) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Listado de Ventas del Mes -->
+    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">Ventas Registradas en el Periodo</h2>
+    <div class="overflow-x-auto mb-6 max-h-56 overflow-y-auto">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b text-xs text-slate-400 uppercase sticky top-0 bg-white">
+                    <th class="pb-2">Ticket #</th>
+                    <th class="pb-2">Fecha</th>
+                    <th class="pb-2">Cliente</th>
+                    <th class="pb-2 text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in ventas %}
+                <tr class="border-b last:border-none text-xs">
+                    <td class="py-2 font-bold text-slate-700">#{{ v.id }}</td>
+                    <td class="py-2 text-slate-500">{{ v.fecha.strftime('%Y-%m-%d') }}</td>
+                    <td class="py-2 font-medium">{{ v.cliente.nombre }}</td>
+                    <td class="py-2 text-right font-semibold text-emerald-600">${{ "%.2f"|format(v.total) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="py-3 text-center text-slate-400 italic text-xs">No hubo ventas en este periodo.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Listado de Gastos del Mes -->
+    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">Gastos Registrados en el Periodo</h2>
+    <div class="overflow-x-auto mb-6 max-h-56 overflow-y-auto">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b text-xs text-slate-400 uppercase sticky top-0 bg-white">
+                    <th class="pb-2">Fecha</th>
+                    <th class="pb-2">Concepto</th>
+                    <th class="pb-2 text-right">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in gastos %}
+                <tr class="border-b last:border-none text-xs">
+                    <td class="py-2 text-slate-500">{{ g.fecha.strftime('%Y-%m-%d') }}</td>
+                    <td class="py-2 font-medium text-slate-800">{{ g.concepto }}</td>
+                    <td class="py-2 text-right font-semibold text-red-600">${{ "%.2f"|format(g.monto) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="py-3 text-center text-slate-400 italic text-xs">No hubo gastos registrados en este periodo.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Botones de Acción (Ocultos al imprimir) -->
+    <div class="flex gap-3 print:hidden">
+        <a href="{{ url_for('cierres') }}" class="w-1/2 bg-slate-100 text-slate-700 py-2.5 rounded-xl text-center text-xs font-semibold hover:bg-slate-200 transition">← Volver al módulo de cierres</a>
+        <button onclick="window.print()" class="w-1/2 bg-slate-900 text-white py-2.5 rounded-xl text-center text-xs font-semibold hover:bg-slate-800 transition">🖨️ Imprimir Reporte</button>
+    </div>
+</div>
+{% endblock %}
