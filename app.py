@@ -403,6 +403,7 @@ def registrar_venta():
     fecha_str = request.form.get('fecha')
     productos_ids = request.form.getlist('producto_id[]')
     cantidades = request.form.getlist('cantidad[]')
+    precios_personalizados = request.form.getlist('precio_unitario[]') # Captura el precio editado
     
     fecha_venta = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
     if not cliente_id or not billetera_id or not productos_ids:
@@ -413,20 +414,20 @@ def registrar_venta():
     db.session.flush()
 
     total_venta = 0.0
-    for p_id, cant in zip(productos_ids, cantidades):
-        if p_id and cant:
+    for p_id, cant, precio_str in zip(productos_ids, cantidades, precios_personalizados):
+        if p_id and cant and precio_str:
             producto = Producto.query.get(int(p_id))
             cantidad = int(cant)
+            precio_unit = float(precio_str) # Usa el precio escrito manualmente en la interfaz
             if producto and cantidad > 0 and producto.stock_actual >= cantidad:
                 producto.stock_actual -= cantidad
-                subtotal = producto.precio * cantidad
+                subtotal = precio_unit * cantidad
                 total_venta += subtotal
-                db.session.add(DetalleVenta(venta_id=nueva_venta.id, producto_id=producto.id, cantidad=cantidad, precio_unitario=producto.precio))
+                db.session.add(DetalleVenta(venta_id=nueva_venta.id, producto_id=producto.id, cantidad=cantidad, precio_unitario=precio_unit))
 
     nueva_venta.total = total_venta
     db.session.commit()
 
-    # Notificar a todos los usuarios conectados
     socketio.emit('notificacion_global', {
         'titulo': '🛒 Nueva Venta Registrada',
         'mensaje': f'{current_user.username} realizó una venta por ${total_venta:.2f} cobrada en {nueva_venta.billetera.nombre}.'
@@ -490,10 +491,10 @@ def cotizaciones():
     productos = Producto.query.all()
     clientes = Cliente.query.all()
     billeteras = Billetera.query.all()
-    lista_cotizaciones = Cotizacion.query.order_by(Cotizacion.fecha.desc()).all()
+    # 🔹 Filtrar para mostrar únicamente las cotizaciones con estado 'Pendiente'
+    lista_cotizaciones = Cotizacion.query.filter_by(estado='Pendiente').order_by(Cotizacion.fecha.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('cotizaciones.html', store_name="Himalaya Store SC", productos=productos, clientes=clientes, billeteras=billeteras, cotizaciones=lista_cotizaciones, fecha_hoy=fecha_hoy)
-
 @app.route('/registrar_cotizacion', methods=['POST'])
 @login_required
 def registrar_cotizacion():

@@ -1,14 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
 <script>
+    const preciosProductosVenta = {
+        {% for p in productos %}
+        "{{ p.id }}": {{ p.precio }},
+        {% endfor %}
+    };
+
+    function actualizarPrecioVenta(selectElement) {
+        const fila = selectElement.closest('.producto-fila');
+        const inputPrecio = fila.querySelector('.precio-input');
+        const productoId = selectElement.value;
+        
+        if (productoId && preciosProductosVenta[productoId] !== undefined) {
+            inputPrecio.value = preciosProductosVenta[productoId];
+        } else {
+            inputPrecio.value = "";
+        }
+    }
+
     function agregarFilaProducto() {
         const container = document.getElementById('productos-venta-container');
         const primeraFila = container.querySelector('.producto-fila');
         const nuevaFila = primeraFila.cloneNode(true);
         nuevaFila.querySelector('select').value = "";
-        nuevaFila.querySelector('input').value = "1";
+        nuevaFila.querySelector('.precio-input').value = "";
+        nuevaFila.querySelector('input[name="cantidad[]"]').value = "1";
         container.appendChild(nuevaFila);
     }
+
     function eliminarFila(button) {
         const container = document.getElementById('productos-venta-container');
         if (container.querySelectorAll('.producto-fila').length > 1) {
@@ -20,7 +40,7 @@
 <h1 class="text-2xl font-bold mb-6 text-slate-900">Módulo de Ventas</h1>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Formulario de Registro -->
+    <!-- Formulario de Registro con Precios Editables -->
     <div class="bg-white p-6 rounded-2xl shadow-md h-fit">
         <h2 class="text-lg font-semibold mb-4 text-slate-800">🛒 Registrar Nueva Venta</h2>
         <form action="/registrar_venta" method="POST" class="space-y-4">
@@ -48,27 +68,29 @@
             </div>
 
             <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Productos</label>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Productos y Precios Editables</label>
                 <div id="productos-venta-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    <div class="producto-fila flex gap-2 items-center">
-                        <select name="producto_id[]" required class="w-3/5 px-2 py-1.5 border rounded text-xs bg-white">
+                    <div class="producto-fila flex gap-2 items-center bg-slate-50 p-2 rounded-lg border">
+                        <select name="producto_id[]" onchange="actualizarPrecioVenta(this)" required class="w-2/5 px-2 py-1.5 border rounded text-xs bg-white">
                             <option value="">Producto</option>
                             {% for p in productos %}
-                            <option value="{{ p.id }}">{{ p.nombre }} (${{ p.precio }})</option>
+                            <option value="{{ p.id }}">{{ p.nombre }}</option>
                             {% endfor %}
                         </select>
-                        <input type="number" name="cantidad[]" min="1" value="1" required class="w-1/5 px-2 py-1.5 border rounded text-xs text-center">
-                        <button type="button" onclick="eliminarFila(this)" class="w-1/5 text-red-500 hover:text-red-700 font-bold text-xs">✕</button>
+                        <input type="number" name="cantidad[]" min="1" value="1" placeholder="Cant" required class="w-1/5 px-1 py-1.5 border rounded text-xs text-center">
+                        <!-- Campo de precio completamente editable -->
+                        <input type="number" step="0.01" name="precio_unitario[]" placeholder="Precio $" required class="w-1/4 px-1.5 py-1.5 border rounded text-xs text-center precio-input bg-white font-semibold text-emerald-700">
+                        <button type="button" onclick="eliminarFila(this)" class="w-[10%] text-red-500 hover:text-red-700 font-bold text-xs text-center">✕</button>
                     </div>
                 </div>
-                <button type="button" onclick="agregarFilaProducto()" class="mt-2 w-full bg-slate-100 text-slate-700 py-1.5 rounded-lg text-xs hover:bg-slate-200">+ Añadir otro producto</button>
+                <button type="button" onclick="agregarFilaProducto()" class="mt-2 w-full bg-slate-100 text-slate-700 py-1.5 rounded-lg text-xs hover:bg-slate-200 transition">+ Añadir otro producto</button>
             </div>
 
             <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-blue-700 transition">Procesar Venta</button>
         </form>
     </div>
 
-    <!-- Historial con Enlaces a Detalle -->
+    <!-- Historial de Ventas -->
     <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-2">
         <h2 class="text-lg font-semibold mb-4 text-slate-800">Historial de Ventas</h2>
         <div class="overflow-x-auto">
