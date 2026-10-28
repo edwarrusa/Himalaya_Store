@@ -7,77 +7,101 @@
     <div class="space-y-6">
         <!-- Registrar Gasto -->
         <div class="bg-white p-6 rounded-2xl shadow-md">
-            <h2 class="text-lg font-semibold mb-4 text-slate-800">💸 Registrar Gasto</h2>
-            <form action="/registrar_gasto" method="POST" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
-                    <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Concepto</label>
-                    <input type="text" name="concepto" placeholder="Ej. Pago de Internet, Alquiler..." required class="w-full px-3 py-2 border rounded-lg text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Monto ($)</label>
-                    <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Descontar de Wallet</label>
-                    <select name="billetera_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                        <option value="">Seleccione wallet</option>
-                        {% for b in billeteras %}
-                        <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" class="w-full bg-red-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-red-700 transition">Registrar Gasto</button>
-            </form>
+            <details class="group">
+                <summary class="flex justify-between items-center cursor-pointer font-semibold text-lg text-slate-800 list-none">
+                    <span>💸 Registrar Gasto</span>
+                    <span class="bg-slate-100 text-slate-600 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold group-open:rotate-45 transition-transform duration-200">+</span>
+                </summary>
+                <form action="/registrar_gasto" method="POST" class="space-y-3 mt-4 pt-4 border-t">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                        <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Concepto</label>
+                        <input type="text" name="concepto" placeholder="Ej. Pago de Internet, Alquiler..." required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Monto ($)</label>
+                        <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Descontar de Wallet</label>
+                        <select name="billetera_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Seleccione wallet</option>
+                            {% for b in billeteras %}
+                            <option value="{{ b.id }}">{{ b.nombre }} (${{ "%.2f"|format(b.saldo) }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-red-700 transition">Registrar Gasto</button>
+                </form>
+            </details>
         </div>
 
         <!-- Registrar Transferencia -->
         <div class="bg-white p-6 rounded-2xl shadow-md">
-            <h2 class="text-lg font-semibold mb-4 text-slate-800">🔄 Transferir entre Wallets</h2>
-            <form action="/registrar_transferencia" method="POST" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
-                    <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Wallet Origen</label>
-                    <select name="origen_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                        <option value="">Origen</option>
-                        {% for b in billeteras %}
-                        <option value="{{ b.id }}">{{ b.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Wallet Destino</label>
-                    <select name="destino_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                        <option value="">Destino</option>
-                        {% for b in billeteras %}
-                        <option value="{{ b.id }}">{{ b.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Monto a Transferir ($)</label>
-                    <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
-                </div>
-                <button type="submit" class="w-full bg-slate-800 text-white font-medium py-2 rounded-lg text-sm hover:bg-slate-900 transition">Realizar Transferencia</button>
-            </form>
+            <details class="group">
+                <summary class="flex justify-between items-center cursor-pointer font-semibold text-lg text-slate-800 list-none">
+                    <span>🔄 Transferir entre Wallets</span>
+                    <span class="bg-slate-100 text-slate-600 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold group-open:rotate-45 transition-transform duration-200">+</span>
+                </summary>
+                <form action="/registrar_transferencia" method="POST" class="space-y-3 mt-4 pt-4 border-t">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                        <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Wallet Origen</label>
+                        <select name="origen_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Origen</option>
+                            {% for b in billeteras %}
+                            <option value="{{ b.id }}">{{ b.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Wallet Destino</label>
+                        <select name="destino_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Destino</option>
+                            {% for b in billeteras %}
+                            <option value="{{ b.id }}">{{ b.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Monto a Transferir ($)</label>
+                        <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <!-- 👇 NUEVO CAMPO DE COMENTARIO -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Concepto / Motivo (Opcional)</label>
+                        <input type="text" name="comentario" placeholder="Ej. Pago de mercancía, vuelto..." class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <button type="submit" class="w-full bg-slate-800 text-white font-medium py-2 rounded-lg text-sm hover:bg-slate-900 transition">Realizar Transferencia</button>
+                </form>
+            </details>
         </div>
-
+        
         <!-- Nueva Billetera -->
         <div class="bg-white p-6 rounded-2xl shadow-md">
-            <h2 class="text-lg font-semibold mb-4 text-slate-800">💳 Crear Nueva Wallet</h2>
-            <form action="/agregar_billetera" method="POST" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Nombre de la Wallet</label>
-                    <input type="text" name="nombre_billetera" placeholder="Ej. Zelle, Efectivo USD, Binance..." required class="w-full px-3 py-2 border rounded-lg text-sm">
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-emerald-700 transition">Crear Wallet</button>
-            </form>
+            <details class="group">
+                <summary class="flex justify-between items-center cursor-pointer font-semibold text-lg text-slate-800 list-none">
+                    <span>💳 Crear Nueva Wallet</span>
+                    <span class="bg-slate-100 text-slate-600 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold group-open:rotate-45 transition-transform duration-200">+</span>
+                </summary>
+                <form action="/agregar_billetera" method="POST" class="space-y-3 mt-4 pt-4 border-t">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Nombre de la Wallet</label>
+                        <input type="text" name="nombre_billetera" placeholder="Ej. Zelle, Efectivo USD, Binance..." required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Saldo Inicial ($)</label>
+                        <input type="number" step="0.01" name="saldo_inicial" value="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-emerald-700 transition">Crear Wallet</button>
+                </form>
+            </details>
         </div>
     </div>
 

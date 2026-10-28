@@ -50,6 +50,9 @@ class Proveedor(db.Model):
 class Billetera(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
+    saldo_inicial = db.Column(db.Float, default=0.0)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow) # 👈 Para registrar cuándo nació la wallet
+    
     ventas = db.relationship('Venta', backref='billetera', lazy=True)
     gastos = db.relationship('Gasto', backref='billetera', lazy=True)
     transferencias_enviadas = db.relationship('Transferencia', foreign_keys='Transferencia.origen_id', backref='origen', lazy=True)
@@ -61,11 +64,23 @@ class Billetera(db.Model):
         total_gastos = sum(g.monto for g in self.gastos)
         total_enviadas = sum(t.monto for t in self.transferencias_enviadas)
         total_recibidas = sum(t.monto for t in self.transferencias_recibidas)
-        return total_ventas - total_gastos - total_enviadas + total_recibidas
+        # Suma el saldo inicial al cálculo global de dinero disponible
+        return self.saldo_inicial + total_ventas - total_gastos - total_enviadas + total_recibidas
 
     @property
     def movimientos(self):
         lista = []
+        
+        # 👇 AQUÍ ESTÁ LA TRAZABILIDAD: Si hay saldo inicial, aparece como el primer movimiento contable
+        if self.saldo_inicial > 0:
+            lista.append({
+                'fecha': self.fecha_creacion,
+                'tipo': 'Capital Inicial (Apertura)',
+                'descripcion': 'Saldo con el que arrancó la billetera (Negocio en marcha)',
+                'monto': self.saldo_inicial,
+                'es_ingreso': True
+            })
+
         for v in self.ventas:
             lista.append({
                 'fecha': v.fecha,
@@ -83,18 +98,20 @@ class Billetera(db.Model):
                 'es_ingreso': False
             })
         for t in self.transferencias_enviadas:
+            detalle_nota = f" - Nota: {t.comentario}" if t.comentario else ""
             lista.append({
                 'fecha': t.fecha,
                 'tipo': 'Transferencia Enviada',
-                'descripcion': f"A wallet: {t.destino.nombre} (Por: {t.usuario.username})",
+                'descripcion': f"A wallet: {t.destino.nombre}{detalle_nota}",
                 'monto': t.monto,
                 'es_ingreso': False
             })
         for t in self.transferencias_recibidas:
+            detalle_nota = f" - Nota: {t.comentario}" if t.comentario else ""
             lista.append({
                 'fecha': t.fecha,
                 'tipo': 'Transferencia Recibida',
-                'descripcion': f"Desde wallet: {t.origen.nombre}",
+                'descripcion': f"Desde wallet: {t.origen.nombre}{detalle_nota}",
                 'monto': t.monto,
                 'es_ingreso': True
             })
@@ -153,6 +170,7 @@ class Transferencia(db.Model):
     destino_id = db.Column(db.Integer, db.ForeignKey('billetera.id'), nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     monto = db.Column(db.Float, nullable=False)
+    comentario = db.Column(db.String(250), nullable=True) # 👈 Este campo guarda el concepto
     fecha = db.Column(db.DateTime, nullable=False)
 
 class Cotizacion(db.Model):
@@ -401,50 +419,16 @@ def registrar_entrada_inventario():
 @login_required
 def agregar_billetera():
     nombre = request.form.get('nombre_billetera')
+    try:
+        saldo_inicial = float(request.form.get('saldo_inicial', 0.0))
+    except ValueError:
+        saldo_inicial = 0.0
+
     if nombre:
-        db.session.add(Billetera(nombre=nombre))
+        nueva_w = Billetera(nombre=nombre, saldo_inicial=saldo_inicial, fecha_creacion=datetime.utcnow())
+        db.session.add(nueva_w)
         db.session.commit()
     return redirect(url_for('finanzas'))
-
-@app.route('/registrar_venta', methods=['POST'])
-@login_required
-def registrar_venta():
-    cliente_id = request.form.get('cliente_id')
-    billetera_id = request.form.get('billetera_id')
-    fecha_str = request.form.get('fecha')
-    productos_ids = request.form.getlist('producto_id[]')
-    cantidades = request.form.getlist('cantidad[]')
-    precios_personalizados = request.form.getlist('precio_unitario[]') # Captura el precio editado
-    
-    fecha_venta = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
-    if not cliente_id or not billetera_id or not productos_ids:
-        return redirect(url_for('ventas'))
-
-    nueva_venta = Venta(cliente_id=int(cliente_id), billetera_id=int(billetera_id), usuario_id=current_user.id, total=0.0, fecha=fecha_venta)
-    db.session.add(nueva_venta)
-    db.session.flush()
-
-    total_venta = 0.0
-    for p_id, cant, precio_str in zip(productos_ids, cantidades, precios_personalizados):
-        if p_id and cant and precio_str:
-            producto = Producto.query.get(int(p_id))
-            cantidad = int(cant)
-            precio_unit = float(precio_str) # Usa el precio escrito manualmente en la interfaz
-            if producto and cantidad > 0 and producto.stock_actual >= cantidad:
-                producto.stock_actual -= cantidad
-                subtotal = precio_unit * cantidad
-                total_venta += subtotal
-                db.session.add(DetalleVenta(venta_id=nueva_venta.id, producto_id=producto.id, cantidad=cantidad, precio_unitario=precio_unit))
-
-    nueva_venta.total = total_venta
-    db.session.commit()
-
-    socketio.emit('notificacion_global', {
-        'titulo': '🛒 Nueva Venta Registrada',
-        'mensaje': f'{current_user.username} realizó una venta por ${total_venta:.2f} cobrada en {nueva_venta.billetera.nombre}.'
-    })
-
-    return redirect(url_for('ventas'))
 
 @app.route('/registrar_gasto', methods=['POST'])
 @login_required
@@ -474,15 +458,22 @@ def registrar_transferencia():
     origen_id = int(request.form.get('origen_id'))
     destino_id = int(request.form.get('destino_id'))
     monto = float(request.form.get('monto', 0))
+    comentario = request.form.get('comentario', '').strip() # 👈 Captura el concepto
     fecha_str = request.form.get('fecha')
     
     fecha_trans = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
     if origen_id and destino_id and origen_id != destino_id and monto > 0:
-        trans = Transferencia(origen_id=origen_id, destino_id=destino_id, monto=monto, usuario_id=current_user.id, fecha=fecha_trans)
+        trans = Transferencia(
+            origen_id=origen_id, 
+            destino_id=destino_id, 
+            monto=monto, 
+            usuario_id=current_user.id, 
+            comentario=comentario, # 👈 Lo guarda en la base de datos
+            fecha=fecha_trans
+        )
         db.session.add(trans)
         db.session.commit()
         
-        # Notificar a todos
         socketio.emit('notificacion_global', {
             'titulo': '🔄 Transferencia entre Wallets',
             'mensaje': f'{current_user.username} transfirió ${monto:.2f} entre billeteras.'
