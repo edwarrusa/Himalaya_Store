@@ -3,20 +3,15 @@
 <div class="max-w-6xl mx-auto space-y-8">
     
     <!-- Encabezado del Módulo -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-md">
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900">📦 Módulo de Inventario & Recepción de Pedidos</h1>
-            <p class="text-xs text-slate-500 mt-1">Gestión de entradas de proveedores y control de stock disponible.</p>
-        </div>
-        <!-- 🖨️ Botón para Imprimir Inventario para Clientes -->
-        <a href="{{ url_for('imprimir_inventario') }}" target="_blank" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-900 transition flex items-center gap-2 shadow-sm">
-            🖨️ Imprimir Catálogo / Inventario para Cliente
-        </a>
+    <div class="bg-white p-6 rounded-2xl shadow-md">
+        <h1 class="text-2xl font-bold text-slate-900">📦 Módulo de Inventario & Control de Stock</h1>
+        <p class="text-xs text-slate-500 mt-1">Gestión de entradas de proveedores y salidas/ajustes por merma, donación o uso interno.</p>
     </div>
 
+    <!-- Grid de Formularios: Entradas y Salidas -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        <!-- Recibir Pedido de Proveedor (Carga Masiva) -->
+        <!-- Recibir Pedido de Proveedor -->
         <div class="bg-white p-6 rounded-2xl shadow-md">
             <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
                 <span>📥</span> Recibir Pedido de Proveedor
@@ -43,22 +38,21 @@
                     <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
                 </div>
 
-                <!-- Contenedor dinámico de productos -->
-                <div id="productos-container" class="space-y-3 pt-2 border-t">
+                <div id="productos-container-entrada" class="space-y-3 pt-2 border-t">
                     <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Productos recibidos:</label>
-                    <div class="flex gap-2 items-center fila-producto">
+                    <div class="flex gap-2 items-center fila-producto-entrada">
                         <select name="producto_id[]" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
                             <option value="">Seleccione producto</option>
                             {% for prod in productos %}
-                            <option value="{{ prod.id }}">{{ prod.nombre }} (${{ "%.2f"|format(prod.precio) }})</option>
+                            <option value="{{ prod.id }}">{{ prod.nombre }} (Stock: {{ prod.stock_actual }})</option>
                             {% endfor %}
                         </select>
                         <input type="number" name="cantidad[]" placeholder="Cant." min="1" required class="w-24 px-3 py-2 border rounded-lg text-sm">
                     </div>
                 </div>
 
-                <button type="button" onclick="agregarFilaProducto()" class="text-xs text-blue-600 font-semibold hover:underline mt-1 block">
-                    + Añadir otro producto al pedido
+                <button type="button" onclick="agregarFilaEntrada()" class="text-xs text-blue-600 font-semibold hover:underline mt-1 block">
+                    + Añadir otro producto
                 </button>
 
                 <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2.5 rounded-xl text-sm hover:bg-blue-700 transition shadow-sm mt-4">
@@ -67,90 +61,150 @@
             </form>
         </div>
 
-        <!-- Stock Actual en Bodega (Centrado y Protagonista) -->
-        <div class="bg-white p-6 rounded-2xl shadow-md flex flex-col justify-between">
-            <div>
-                <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
-                    <span>📊</span> Stock Actual en Bodega
-                </h2>
-                <div class="overflow-x-auto max-h-[350px] overflow-y-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="sticky top-0 bg-white shadow-sm">
-                            <tr class="border-b text-xs text-slate-400 uppercase">
-                                <th class="pb-2">Producto</th>
-                                <th class="pb-2 text-center">Precio</th>
-                                <th class="pb-2 text-right">Stock Disponible</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in productos %}
-                            <tr class="border-b last:border-none text-xs">
-                                <td class="py-3 font-medium text-slate-800">{{ p.nombre }}</td>
-                                <td class="py-3 text-center text-emerald-600 font-bold">${{ "%.2f"|format(p.precio) }}</td>
-                                <td class="py-3 text-right font-bold">
-                                    <span class="px-2.5 py-1 rounded-full {{ 'bg-red-50 text-red-600' if p.stock_actual == 0 else 'bg-emerald-50 text-emerald-600' }}">
-                                        {{ p.stock_actual }} unidades
-                                    </span>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="3" class="py-4 text-center text-slate-400 italic">No hay productos registrados.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <!-- 📤 Registrar Salida / Ajuste de Inventario -->
+        <div class="bg-white p-6 rounded-2xl shadow-md border-t-4 border-amber-500">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+                <span>📤</span> Registrar Salida / Ajuste (Merma / Donación)
+            </h2>
+            <form action="/registrar_salida_inventario" method="POST" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Concepto / Motivo</label>
+                        <select name="concepto" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Seleccione motivo</option>
+                            <option value="Donación">🎁 Donación</option>
+                            <option value="Vencimiento">⚠️ Producto Vencido / Dañado</option>
+                            <option value="Uso de la Empresa">🏢 Uso Interno de la Empresa</option>
+                            <option value="Ajuste de Inventario">⚖️ Ajuste por Conteo Físico</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                        <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    </div>
                 </div>
-            </div>
-            <div class="mt-4 pt-4 border-t text-xs text-slate-400 text-center">
-                * Para modificar nombres o precios, ve al módulo superior de <strong>Productos</strong>.
-            </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Observación / Descripción detallada</label>
+                    <input type="text" name="observacion" placeholder="Ej. Donación entregada a fundación local..." class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+
+                <div id="productos-container-salida" class="space-y-3 pt-2 border-t">
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Productos a descargar:</label>
+                    <div class="flex gap-2 items-center fila-producto-salida">
+                        <select name="producto_id[]" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Seleccione producto</option>
+                            {% for prod in productos %}
+                            <option value="{{ prod.id }}">{{ prod.nombre }} (Stock: {{ prod.stock_actual }})</option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="cantidad[]" placeholder="Cant." min="1" required class="w-24 px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <button type="button" onclick="agregarFilaSalida()" class="text-xs text-amber-600 font-semibold hover:underline mt-1 block">
+                    + Añadir otro producto a descargar
+                </button>
+
+                <button type="submit" class="w-full bg-amber-600 text-white font-medium py-2.5 rounded-xl text-sm hover:bg-amber-700 transition shadow-sm mt-4">
+                    Procesar Salida de Inventario
+                </button>
+            </form>
         </div>
 
     </div>
 
-    <!-- Historial de Pedidos Recibidos -->
-    <div class="bg-white p-6 rounded-2xl shadow-md">
-        <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
-            <span>📜</span> Historial de Pedidos Recibidos
-        </h2>
-        <div class="overflow-x-auto max-h-80 overflow-y-auto">
-            <table class="w-full text-left text-sm">
-                <thead class="sticky top-0 bg-white shadow-sm">
-                    <tr class="border-b text-xs text-slate-400 uppercase">
-                        <th class="pb-2">Fecha</th>
-                        <th class="pb-2">Proveedor</th>
-                        <th class="pb-2">Referencia</th>
-                        <th class="pb-2">Detalle de Ingreso</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entrada in entradas %}
-                    <tr class="border-b last:border-none text-xs">
-                        <td class="py-3 text-slate-500 whitespace-nowrap">{{ entrada.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td class="py-3 font-semibold text-slate-800">🏭 {{ entrada.proveedor.nombre }}</td>
-                        <td class="py-3 text-slate-600">{{ entrada.referencia or 'N/A' }}</td>
-                        <td class="py-3">
-                            <ul class="space-y-1">
+    <!-- Historiales: Entradas y Salidas -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Historial de Entradas -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+                <span>📜</span> Historial de Entradas
+            </h2>
+            <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="sticky top-0 bg-white shadow-sm">
+                        <tr class="border-b text-xs text-slate-400 uppercase">
+                            <th class="pb-2">Fecha</th>
+                            <th class="pb-2">Proveedor</th>
+                            <th class="pb-2">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entrada in entradas %}
+                        <tr class="border-b last:border-none text-xs">
+                            <td class="py-3 text-slate-500 whitespace-nowrap">{{ entrada.fecha.strftime('%Y-%m-%d') }}</td>
+                            <td class="py-3 font-semibold text-slate-800">{{ entrada.proveedor.nombre }}</td>
+                            <td class="py-3">
                                 {% for det in entrada.detalles %}
-                                <li class="text-slate-600">▪️ {{ det.producto.nombre }} — <strong class="text-slate-800">+{{ det.cantidad }} unidades</strong></li>
+                                <div class="text-slate-600">▪️ {{ det.producto.nombre }} (<strong class="text-emerald-600">+{{ det.cantidad }}</strong>)</div>
                                 {% endfor %}
-                            </ul>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="4" class="py-6 text-center text-slate-400 italic">No hay registros de pedidos recibidos.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-4 text-center text-slate-400 italic">No hay entradas registradas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        <!-- Historial de Salidas / Ajustes -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+                <span>📜</span> Historial de Salidas / Ajustes
+            </h2>
+            <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="sticky top-0 bg-white shadow-sm">
+                        <tr class="border-b text-xs text-slate-400 uppercase">
+                            <th class="pb-2">Fecha / Concepto</th>
+                            <th class="pb-2">Observación</th>
+                            <th class="pb-2">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for salida in salidas %}
+                        <tr class="border-b last:border-none text-xs">
+                            <td class="py-3 whitespace-nowrap">
+                                <span class="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">{{ salida.concepto }}</span>
+                                <div class="text-slate-400 text-[10px] mt-0.5">{{ salida.fecha.strftime('%Y-%m-%d') }}</div>
+                            </td>
+                            <td class="py-3 text-slate-600">{{ salida.observacion or 'N/A' }}</td>
+                            <td class="py-3">
+                                {% for det in salida.detalles %}
+                                <div class="text-slate-600">▪️ {{ det.producto.nombre }} (<strong class="text-red-600">-{{ det.cantidad }}</strong>)</div>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-4 text-center text-slate-400 italic">No hay salidas registradas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
 </div>
 
-<!-- Script para clonar filas de productos en el formulario de entrada -->
+<!-- Scripts para clonar filas en los formularios -->
 <script>
-function agregarFilaProducto() {
-    const container = document.getElementById('productos-container');
-    const primeraFila = container.querySelector('.fila-producto');
+function agregarFilaEntrada() {
+    const container = document.getElementById('productos-container-entrada');
+    const primeraFila = container.querySelector('.fila-producto-entrada');
+    const nuevaFila = primeraFila.cloneNode(true);
+    nuevaFila.querySelector('input').value = '';
+    nuevaFila.querySelector('select').selectedIndex = 0;
+    container.appendChild(nuevaFila);
+}
+
+function agregarFilaSalida() {
+    const container = document.getElementById('productos-container-salida');
+    const primeraFila = container.querySelector('.fila-producto-salida');
     const nuevaFila = primeraFila.cloneNode(true);
     nuevaFila.querySelector('input').value = '';
     nuevaFila.querySelector('select').selectedIndex = 0;

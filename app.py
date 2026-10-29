@@ -199,6 +199,20 @@ class CierreMensual(db.Model):
     total_gastos = db.Column(db.Float, default=0.0)
     usuario = db.relationship('Usuario', backref='cierres_realizados', lazy=True)
 
+class SalidaInventario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    concepto = db.Column(db.String(255), nullable=False) # Motivo: donación, vencimiento, uso interno, etc.
+    observacion = db.Column(db.Text, nullable=True)
+    detalles = db.relationship('DetalleSalida', backref='salida', cascade='all, delete-orphan')
+
+class DetalleSalida(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    salida_id = db.Column(db.Integer, db.ForeignKey('salida_inventario.id'), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False)
+    producto = db.relationship('Producto')    
+
 with app.app_context():
     db.create_all()
     if not Usuario.query.first():
@@ -288,8 +302,10 @@ def inventario():
     productos = Producto.query.all()
     proveedores = Proveedor.query.all()
     entradas = EntradaInventario.query.order_by(EntradaInventario.fecha.desc()).all()
+    salidas = SalidaInventario.query.order_by(SalidaInventario.fecha.desc()).all() # 👈 Añadir esto
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
-    return render_template('inventario.html', store_name="Himalaya Store SC", productos=productos, proveedores=proveedores, entradas=entradas, fecha_hoy=fecha_hoy)
+    return render_template('inventario.html', store_name="Himalaya Store SC", productos=productos, proveedores=proveedores, entradas=entradas, salidas=salidas, fecha_hoy=fecha_hoy)
+
 
 # 👇 NUEVA RUTA: Reporte de inventario imprimible para clientes
 @app.route('/inventario/imprimir')
@@ -746,6 +762,44 @@ def eliminar_cierre(id):
     db.session.commit()
     flash('Cierre contable eliminado correctamente del historial.', 'success')
     return redirect(url_for('cierres'))
+
+@app.route('/registrar_salida_inventario', methods=['POST'])
+@login_required
+def registrar_salida_inventario():
+    concepto = request.form.get('concepto')
+    observacion = request.form.get('observacion')
+    fecha_str = request.form.get('fecha')
+    
+    productos_ids = request.form.getlist('producto_id[]')
+    cantidades = request.form.getlist('cantidad[]')
+    
+    fecha = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
+    
+    nueva_salida = SalidaInventario(concepto=concepto, observacion=observacion, fecha=fecha)
+    db.session.add(nueva_salida)
+    db.session.flush() # Para obtener el ID de la salida
+    
+    for p_id, cant in zip(productos_ids, cantidades):
+        if p_id and cant:
+            producto = Producto.query.get(int(p_id))
+            cantidad_retirar = int(cant)
+            
+            # Opcional: Validar que no retires más de lo que hay en stock
+            if producto.stock_actual < cantidad_retirar:
+                flash(f'Stock insuficiente para "{producto.nombre}". Stock actual: {producto.stock_actual}', 'error')
+                db.session.rollback()
+                return redirect(url_for('inventario'))
+            
+            # Descontar stock actual
+            producto.stock_actual -= cantidad_retirar
+            
+            # Registrar detalle
+            detalle = DetalleSalida(salida_id=nueva_salida.id, producto_id=producto.id, cantidad=cantidad_retirar)
+            db.session.add(detalle)
+            
+    db.session.commit()
+    flash('Salida de inventario registrada y stock actualizado correctamente.', 'success')
+    return redirect(url_for('inventario'))
 
 import os
 

@@ -117,19 +117,65 @@
     <!-- Barra de Navegación con print:hidden para ocultarla al imprimir -->
     <nav class="bg-slate-900 text-white shadow-md relative print:hidden">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
+            
+            <!-- Logotipo / Nombre de la Tienda (Lleva al Dashboard) -->
             <div class="text-lg font-bold tracking-wide flex items-center gap-2">
-                🏔️ <span>{{ store_name }}</span>
+                <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2 font-bold text-lg hover:text-emerald-400 transition">
+                    <span>⛰️</span> {{ store_name }}
+                </a>
             </div>
+
+            <!-- Opciones de Navegación -->
             <div class="flex gap-4 text-sm font-medium items-center flex-wrap">
-                <a href="{{ url_for('dashboard') }}" class="hover:text-emerald-400 transition">📊 Resumen</a>
-                <a href="{{ url_for('ventas') }}" class="hover:text-emerald-400 transition">🛒 Ventas</a>
-                <a href="{{ url_for('inventario') }}" class="hover:text-emerald-400 transition">📦 Inventario</a>
-                <a href="{{ url_for('productos') }}" class="hover:text-emerald-400 transition">🏷️ Productos</a>
-                <a href="{{ url_for('proveedores') }}" class="hover:text-emerald-400 transition">🏭 Proveedores</a>
+            
+                <!-- Menú Desplegable Facturación (Ventas y Cotizaciones) -->
+                <div class="relative group">
+                    <button class="hover:text-emerald-400 transition flex items-center gap-1 py-2">
+                        🛒 Facturación <span class="text-xs">▼</span>
+                    </button>
+                    <div class="absolute left-0 mt-0 w-48 bg-white rounded-xl shadow-xl py-2 hidden group-hover:block z-50 border border-slate-100">
+                        <a href="{{ url_for('ventas') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                            🛒 Ventas
+                        </a>
+                        <a href="{{ url_for('cotizaciones') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                            📄 Cotizaciones
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Menú Desplegable Inventario Unificado -->
+                <div class="relative group">
+                    <button class="hover:text-emerald-400 transition flex items-center gap-1 py-2">
+                        📦 Inventario <span class="text-xs">▼</span>
+                    </button>
+                    <div class="absolute left-0 mt-0 w-48 bg-white rounded-xl shadow-xl py-2 hidden group-hover:block z-50 border border-slate-100">
+                        <a href="{{ url_for('inventario') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                            📥 Carga / Ajustes
+                        </a>
+                        <a href="{{ url_for('productos') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                            🏷️ Productos
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Menú Desplegable Directorio (Clientes y Proveedores) -->
+                <div class="relative group">
+                    <button class="hover:text-emerald-400 transition flex items-center gap-1 py-2">
+                        📇 Directorio <span class="text-xs">▼</span>
+                    </button>
+                    <div class="absolute left-0 mt-0 w-44 bg-white rounded-xl shadow-xl py-2 hidden group-hover:block z-50 border border-slate-100">
+                        <a href="{{ url_for('clientes') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                            👤 Clientes
+                        </a>
+                        <a href="{{ url_for('proveedores') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                            🏭 Proveedores
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Enlaces Directos -->
                 <a href="{{ url_for('finanzas') }}" class="hover:text-emerald-400 transition">💳 Wallets & Finanzas</a>
-                <a href="{{ url_for('clientes') }}" class="hover:text-emerald-400 transition">👤 Clientes</a>
                 <a href="{{ url_for('gestionar_usuarios') }}" class="hover:text-emerald-400 transition">👥 Usuarios</a>
-                <a href="{{ url_for('cotizaciones') }}" class="hover:text-emerald-400 transition">📄 Cotizaciones</a>
                 <a href="{{ url_for('cierres') }}" class="hover:text-emerald-400 transition">📊 Cierres</a>
                 
                 <!-- BOTÓN DE LA CAMPANITA DE NOTIFICACIONES -->
@@ -156,10 +202,12 @@
                     <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">👤 {{ current_user.username }}</span>
                     <a href="{{ url_for('logout') }}" class="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition">Salir</a>
                 </div>
+
             </div>
         </div>
     </nav>
 
+    <!-- Contenido Principal -->
     <main class="max-w-7xl mx-auto py-8 px-4">
         {% block content %}{% endblock %}
     </main>

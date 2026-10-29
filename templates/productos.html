@@ -1,79 +1,111 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-6 text-slate-900">📦 Gestión de Productos (Catálogo)</h1>
+<div class="max-w-6xl mx-auto space-y-6">
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-    <!-- Formulario para Agregar Producto (Colapsable) -->
-    <div class="space-y-6">
-        <div class="bg-white p-6 rounded-2xl shadow-md">
-            <details class="group">
-                <summary class="flex justify-between items-center cursor-pointer font-semibold text-lg text-slate-800 list-none">
-                    <span>➕ Agregar Nuevo Producto</span>
-                    <span class="bg-slate-100 text-slate-600 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold group-open:rotate-45 transition-transform duration-200">+</span>
-                </summary>
-                <form action="{{ url_for('agregar_producto') }}" method="POST" class="space-y-3 mt-4 pt-4 border-t">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1">Nombre del Producto</label>
-                        <input type="text" name="nombre" placeholder="Ej. Agujas PMU, Perfume..." required class="w-full px-3 py-2 border rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1">Precio ($)</label>
-                        <input type="number" step="0.01" name="precio" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1">Stock Inicial</label>
-                        <input type="number" name="stock" placeholder="0" required class="w-full px-3 py-2 border rounded-lg text-sm">
-                    </div>
-                    <button type="submit" class="w-full bg-emerald-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-emerald-700 transition">Guardar Producto</button>
-                </form>
-            </details>
+    <!-- Encabezado y Barra de Acciones -->
+    <div class="bg-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">🏷️ Módulo de Productos</h1>
+            <p class="text-xs text-slate-500 mt-1">Creación, edición de precios y catálogo general.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+           <!--Imprimir inventario -->
+            <a href="{{ url_for('imprimir_inventario') }}" target="_blank" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-900 transition flex items-center gap-2 shadow-sm">
+                🖨️ Imprimir / Ajustar Precios
+            </a>
+
+            <!-- Buscador -->
+            <form method="GET" action="{{ url_for('productos') }}" class="flex gap-2 flex-1 md:flex-initial">
+                <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar producto..." class="px-3 py-2 border rounded-xl text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-slate-500">
+                <button type="submit" class="bg-slate-100 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-200 transition">Buscar</button>
+            </form>
         </div>
     </div>
 
-    <!-- Listado y Buscador de Productos -->
-    <div class="lg:col-span-2 space-y-6">
-        <div class="bg-white p-6 rounded-2xl shadow-md">
-            <!-- Barra de Búsqueda -->
-            <form method="GET" action="{{ url_for('productos') }}" class="flex gap-2 mb-6">
-                <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar producto por nombre..." class="w-full px-4 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
-                <button type="submit" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-slate-900 transition">Buscar</button>
-                {% if busqueda %}
-                <a href="{{ url_for('productos') }}" class="bg-gray-200 text-slate-700 px-4 py-2 rounded-xl text-sm flex items-center justify-center hover:bg-gray-300 transition">Limpiar</a>
-                {% endif %}
-            </form>
-
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-slate-800">Catálogo Actual</h2>
-                <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold">Total: {{ productos|length }}</span>
+    <!-- Panel flotante de impresión / ajuste (Oculto por defecto) -->
+    <div id="panel-impresion" class="hidden bg-emerald-50 border border-emerald-200 p-4 rounded-2xl shadow-sm flex flex-wrap gap-4 items-center justify-between no-print">
+        <div class="flex items-center gap-4">
+            <span class="text-xs font-bold text-emerald-800 uppercase">🖨️ Modo Impresión Activo:</span>
+            <div>
+                <label class="block text-xs font-medium text-emerald-700 mb-1">Ajuste / Margen / Recargo (%)</label>
+                <input type="number" id="porcentaje-impresion" value="0" step="1" class="px-3 py-1.5 border border-emerald-300 rounded-lg text-sm w-32 bg-white" oninput="calcularPreciosImpresion()" placeholder="Ej. 10">
             </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window.print()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition shadow-sm">
+                🖨️ Imprimir Ahora / PDF
+            </button>
+            <button onclick="cerrarModalImpresion()" class="bg-white border border-emerald-300 text-emerald-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-50 transition">
+                ✕ Salir
+            </button>
+        </div>
+    </div>
 
-            <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+    <!-- Layout principal: Formulario de creación a la izquierda y Tabla a la derecha -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- ➕ Formulario para Registrar Nuevo Producto -->
+        <div class="bg-white p-6 rounded-2xl shadow-md h-fit no-print">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+                <span>➕</span> Nuevo Producto
+            </h2>
+            <form action="{{ url_for('agregar_producto') }}" method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Nombre del Producto</label>
+                    <input type="text" name="nombre" placeholder="Ej. Producto X" required class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Precio Base ($)</label>
+                    <input type="number" step="0.01" name="precio" placeholder="0.00" required class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Stock Inicial</label>
+                    <input type="number" name="stock" placeholder="0" required class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2.5 rounded-xl text-sm hover:bg-blue-700 transition shadow-sm">
+                    Guardar Producto
+                </button>
+            </form>
+        </div>
+
+        <!-- Tabla Principal de Productos -->
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="sticky top-0 bg-white shadow-sm">
-                        <tr class="border-b text-xs text-slate-400 uppercase">
-                            <th class="pb-2">Nombre</th>
-                            <th class="pb-2 text-center">Precio</th>
-                            <th class="pb-2 text-center">Stock</th>
-                            <th class="pb-2 text-right">Acciones</th>
+                    <thead class="bg-slate-50 border-b text-xs text-slate-400 uppercase">
+                        <tr>
+                            <th class="p-4">Producto</th>
+                            <th class="p-4 text-center">Stock Actual</th>
+                            <th class="p-4 text-right">Precio Base ($)</th>
+                            <th class="p-4 text-right hidden col-impresion">Precio Ajustado ($)</th>
+                            <th class="p-4 text-right no-print">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in productos %}
-                        <tr class="border-b last:border-none text-xs">
-                            <td class="py-3 font-medium text-slate-800">{{ p.nombre }}</td>
-                            <td class="py-3 text-center text-emerald-600 font-bold">${{ "%.2f"|format(p.precio) }}</td>
-                            <td class="py-3 text-center font-bold text-slate-700">{{ p.stock_actual }}</td>
-                            <td class="py-3 text-right space-x-2">
-                                <!-- Botón para abrir modal o desplegar edición rápida -->
-                                <button onclick="document.getElementById('edit-modal-{{ p.id }}').classList.remove('hidden')" class="text-blue-600 hover:underline font-semibold">Editar</button>
-                                
-                                
+                        <tr class="border-b last:border-none text-xs hover:bg-slate-50/50 transition">
+                            <td class="p-4 font-semibold text-slate-800 text-sm">{{ p.nombre }}</td>
+                            <td class="p-4 text-center">
+                                <span class="px-2.5 py-1 rounded-full font-bold {{ 'bg-red-50 text-red-600' if p.stock_actual == 0 else 'bg-emerald-50 text-emerald-600' }}">
+                                    {{ p.stock_actual }} un.
+                                </span>
+                            </td>
+                            <td class="p-4 text-right font-bold text-slate-600">${{ "%.2f"|format(p.precio) }}</td>
+                            <!-- Columna dinámica para impresión con porcentaje -->
+                            <td class="p-4 text-right font-bold text-emerald-600 text-sm hidden col-impresion precio-calculado-td" data-precio-usd="{{ p.precio }}">
+                                ${{ "%.1f"|format(p.precio) }}
+                            </td>
+                            <td class="p-4 text-right no-print">
+                                <button onclick="document.getElementById('edit-modal-{{ p.id }}').classList.remove('hidden')" class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-medium hover:bg-slate-200 transition">
+                                    ✏️ Editar
+                                </button>
                             </td>
                         </tr>
 
-                       <!-- Modal de Edición Rápida (Solo Nombre y Precio) -->
+                        <!-- Modal de Edición Rápida (Nombre y Precio) -->
                         <div id="edit-modal-{{ p.id }}" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 p-4">
-                            <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+                            <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-left">
                                 <h3 class="text-lg font-semibold text-slate-800 mb-4">✏️ Editar Producto</h3>
                                 <form action="{{ url_for('editar_producto', id=p.id) }}" method="POST" class="space-y-3">
                                     <div>
@@ -84,9 +116,8 @@
                                         <label class="block text-xs font-medium text-slate-500 mb-1">Precio ($)</label>
                                         <input type="number" step="0.01" name="precio" value="{{ p.precio }}" required class="w-full px-3 py-2 border rounded-lg text-sm">
                                     </div>
-                                    <!-- Nota informativa para el usuario -->
                                     <div class="text-xs text-slate-400 italic bg-slate-50 p-2 rounded-lg">
-                                        * El stock no se edita aquí. Para modificarlo debes registrar una entrada o ajuste de inventario.
+                                        * El stock no se edita aquí. Para modificarlo debes registrar una entrada en el módulo de Inventario.
                                     </div>
                                     <div class="flex gap-2 pt-2">
                                         <button type="submit" class="w-full bg-slate-800 text-white font-medium py-2 rounded-lg text-sm hover:bg-slate-900 transition">Guardar Cambios</button>
@@ -96,12 +127,52 @@
                             </div>
                         </div>
                         {% else %}
-                        <tr><td colspan="4" class="py-4 text-center text-slate-400 italic">No se encontraron productos registrados.</td></tr>
+                        <tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No hay productos registrados.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
+
     </div>
 </div>
+
+<!-- Estilos para ocultar elementos al imprimir -->
+<style>
+@media print {
+    .no-print { display: none !important; }
+    .col-impresion { display: table-cell !important; }
+    body { background: white; padding: 0; }
+    .shadow-md { box-shadow: none !important; }
+}
+</style>
+
+<!-- Script para el comportamiento de impresión interactiva -->
+<script>
+function abrirModalImpresion() {
+    document.getElementById('panel-impresion').classList.remove('hidden');
+    document.querySelectorAll('.col-impresion').forEach(el => el.classList.remove('hidden'));
+    calcularPreciosImpresion();
+}
+
+function cerrarModalImpresion() {
+    document.getElementById('panel-impresion').classList.add('hidden');
+    document.querySelectorAll('.col-impresion').forEach(el => el.classList.add('hidden'));
+}
+
+function calcularPreciosImpresion() {
+    const porcentaje = parseFloat(document.getElementById('porcentaje-impresion').value) || 0;
+    const factor = 1 + (porcentaje / 100);
+
+    document.querySelectorAll('.precio-calculado-td').forEach(el => {
+        const precioBase = parseFloat(el.getAttribute('data-precio-usd')) || 0;
+        const precioCalculado = precioBase * factor;
+        
+        // Redondeo hacia arriba a 1 decimal
+        const precioFinal = Math.ceil(precioCalculado * 10) / 10;
+        
+        el.textContent = '$' + precioFinal.toFixed(1);
+    });
+}
+</script>
 {% endblock %}
