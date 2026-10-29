@@ -1,155 +1,143 @@
 {% extends "base.html" %}
 {% block content %}
-<script>
-    function agregarFilaEntrada() {
-        const container = document.getElementById('productos-entrada-container');
-        const primeraFila = container.querySelector('.producto-fila');
-        const nuevaFila = primeraFila.cloneNode(true);
-        nuevaFila.querySelector('select').value = "";
-        nuevaFila.querySelector('input').value = "1";
-        container.appendChild(nuevaFila);
-    }
-    function eliminarFilaEntrada(button) {
-        const container = document.getElementById('productos-entrada-container');
-        if (container.querySelectorAll('.producto-fila').length > 1) {
-            button.closest('.producto-fila').remove();
-        }
-    }
-</script>
-
-<h1 class="text-2xl font-bold mb-6 text-slate-900">Módulo de Inventario & Recepción de Pedidos</h1>
-
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+<div class="max-w-6xl mx-auto space-y-8">
     
-    <!-- 1. Crear Producto Único -->
-    <div class="bg-white p-6 rounded-2xl shadow-md h-fit">
-        <h2 class="text-lg font-semibold mb-4 text-slate-800">📦 Registrar Nuevo Producto</h2>
-        <form action="/agregar_producto" method="POST" class="space-y-4">
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
-                <input type="text" name="nombre" required class="w-full px-3 py-2 border rounded-lg text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Precio ($)</label>
-                <input type="number" step="0.01" name="precio" required class="w-full px-3 py-2 border rounded-lg text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Stock Inicial</label>
-                <input type="number" name="stock" required class="w-full px-3 py-2 border rounded-lg text-sm">
-            </div>
-            <button type="submit" class="w-full bg-emerald-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-emerald-700 transition">Guardar Producto</button>
-        </form>
+    <!-- Encabezado del Módulo -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-md">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">📦 Módulo de Inventario & Recepción de Pedidos</h1>
+            <p class="text-xs text-slate-500 mt-1">Gestión de entradas de proveedores y control de stock disponible.</p>
+        </div>
+        <!-- 🖨️ Botón para Imprimir Inventario para Clientes -->
+        <a href="{{ url_for('imprimir_inventario') }}" target="_blank" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-900 transition flex items-center gap-2 shadow-sm">
+            🖨️ Imprimir Catálogo / Inventario para Cliente
+        </a>
     </div>
 
-    <!-- 2. Carga Masiva de Pedido con Proveedor -->
-    <div class="bg-white p-6 rounded-2xl shadow-md lg:col-span-2 border-2 border-emerald-500/20">
-        <h2 class="text-lg font-semibold mb-4 text-slate-800">📥 Recibir Pedido de Proveedor (Carga Masiva)</h2>
-        <form action="/registrar_entrada_inventario" method="POST" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Proveedor</label>
-                    <select name="proveedor_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                        <option value="">Seleccione proveedor</option>
-                        {% for prov in proveedores %}
-                        <option value="{{ prov.id }}">{{ prov.nombre }}</option>
-                        {% endfor %}
-                    </select>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Recibir Pedido de Proveedor (Carga Masiva) -->
+        <div class="bg-white p-6 rounded-2xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+                <span>📥</span> Recibir Pedido de Proveedor
+            </h2>
+            <form action="/registrar_entrada_inventario" method="POST" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Proveedor</label>
+                        <select name="proveedor_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="">Seleccione proveedor</option>
+                            {% for p in proveedores %}
+                            <option value="{{ p.id }}">{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Nº de Factura / Ref</label>
+                        <input type="text" name="referencia" placeholder="Ej. Factura #1029" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1">N° de Factura / Referencia</label>
-                    <input type="text" name="referencia" placeholder="Ej: Factura #1029" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                </div>
+
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">Fecha de Recepción</label>
                     <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
                 </div>
-            </div>
 
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">Productos que llegaron en el pedido (puedes agregar varios):</label>
-                <div id="productos-entrada-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    <div class="producto-fila flex gap-2 items-center">
-                        <select name="producto_id[]" required class="w-3/5 px-2 py-2 border rounded-lg text-xs bg-white">
+                <!-- Contenedor dinámico de productos -->
+                <div id="productos-container" class="space-y-3 pt-2 border-t">
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Productos recibidos:</label>
+                    <div class="flex gap-2 items-center fila-producto">
+                        <select name="producto_id[]" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
                             <option value="">Seleccione producto</option>
-                            {% for p in productos %}
-                            <option value="{{ p.id }}">{{ p.nombre }} (Stock actual: {{ p.stock_actual }})</option>
+                            {% for prod in productos %}
+                            <option value="{{ prod.id }}">{{ prod.nombre }} (${{ "%.2f"|format(prod.precio) }})</option>
                             {% endfor %}
                         </select>
-                        <input type="number" name="cantidad[]" min="1" value="1" required class="w-1/5 px-2 py-2 border rounded-lg text-xs text-center">
-                        <button type="button" onclick="eliminarFilaEntrada(this)" class="w-1/5 text-red-500 hover:text-red-700 font-bold text-xs">✕ Quitar</button>
+                        <input type="number" name="cantidad[]" placeholder="Cant." min="1" required class="w-24 px-3 py-2 border rounded-lg text-sm">
                     </div>
                 </div>
-                <button type="button" onclick="agregarFilaEntrada()" class="mt-2 w-full bg-slate-100 text-slate-700 py-1.5 rounded-lg text-xs hover:bg-slate-200 transition">+ Añadir otro producto al pedido</button>
-            </div>
 
-            <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2 rounded-lg text-sm hover:bg-blue-700 transition">Procesar Ingreso al Inventario</button>
-        </form>
-    </div>
+                <button type="button" onclick="agregarFilaProducto()" class="text-xs text-blue-600 font-semibold hover:underline mt-1 block">
+                    + Añadir otro producto al pedido
+                </button>
 
-</div>
-
-<!-- Tablas Inferiores -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    
-    <!-- Stock Actual -->
-    <div class="bg-white p-6 rounded-2xl shadow-md">
-        <h2 class="text-lg font-semibold mb-4 text-slate-800">📦 Stock Actual en Bodega</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead>
-                    <tr class="border-b text-xs text-slate-400 uppercase">
-                        <th class="pb-2">Producto</th>
-                        <th class="pb-2">Precio</th>
-                        <th class="pb-2">Stock Disponible</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in productos %}
-                    <tr class="border-b last:border-none">
-                        <td class="py-3 font-medium">{{ p.nombre }}</td>
-                        <td class="py-3 text-slate-600">${{ p.precio }}</td>
-                        <td class="py-3">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold {% if p.stock_actual > 5 %}bg-emerald-100 text-emerald-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                {{ p.stock_actual }} unidades
-                            </span>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="3" class="py-4 text-center text-slate-400 italic text-sm">Sin productos registrados.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2.5 rounded-xl text-sm hover:bg-blue-700 transition shadow-sm mt-4">
+                    Procesar Ingreso al Inventario
+                </button>
+            </form>
         </div>
+
+        <!-- Stock Actual en Bodega (Centrado y Protagonista) -->
+        <div class="bg-white p-6 rounded-2xl shadow-md flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+                    <span>📊</span> Stock Actual en Bodega
+                </h2>
+                <div class="overflow-x-auto max-h-[350px] overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="sticky top-0 bg-white shadow-sm">
+                            <tr class="border-b text-xs text-slate-400 uppercase">
+                                <th class="pb-2">Producto</th>
+                                <th class="pb-2 text-center">Precio</th>
+                                <th class="pb-2 text-right">Stock Disponible</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in productos %}
+                            <tr class="border-b last:border-none text-xs">
+                                <td class="py-3 font-medium text-slate-800">{{ p.nombre }}</td>
+                                <td class="py-3 text-center text-emerald-600 font-bold">${{ "%.2f"|format(p.precio) }}</td>
+                                <td class="py-3 text-right font-bold">
+                                    <span class="px-2.5 py-1 rounded-full {{ 'bg-red-50 text-red-600' if p.stock_actual == 0 else 'bg-emerald-50 text-emerald-600' }}">
+                                        {{ p.stock_actual }} unidades
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="py-4 text-center text-slate-400 italic">No hay productos registrados.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t text-xs text-slate-400 text-center">
+                * Para modificar nombres o precios, ve al módulo superior de <strong>Productos</strong>.
+            </div>
+        </div>
+
     </div>
 
-    <!-- Historial de Pedidos / Entradas Recientes -->
+    <!-- Historial de Pedidos Recibidos -->
     <div class="bg-white p-6 rounded-2xl shadow-md">
-        <h2 class="text-lg font-semibold mb-4 text-slate-800">📜 Historial de Pedidos Recibidos</h2>
-        <div class="overflow-x-auto">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+            <span>📜</span> Historial de Pedidos Recibidos
+        </h2>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto">
             <table class="w-full text-left text-sm">
-                <thead>
+                <thead class="sticky top-0 bg-white shadow-sm">
                     <tr class="border-b text-xs text-slate-400 uppercase">
                         <th class="pb-2">Fecha</th>
-                        <th class="pb-2">Proveedor / Ref</th>
+                        <th class="pb-2">Proveedor</th>
+                        <th class="pb-2">Referencia</th>
                         <th class="pb-2">Detalle de Ingreso</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for e in entradas %}
-                    <tr class="border-b last:border-none align-top">
-                        <td class="py-3 text-xs text-slate-500">{{ e.fecha.strftime('%Y-%m-%d') }}</td>
-                        <td class="py-3 font-medium text-slate-800">
-                            <div>{{ e.proveedor.nombre }}</div>
-                            <div class="text-xs text-slate-400 font-normal">Ref: {{ e.referencia }}</div>
-                        </td>
-                        <td class="py-3 text-slate-600 text-xs">
-                            {% for d in e.detalles %}
-                            <div>+{{ d.cantidad }} un. de {{ d.producto.nombre }}</div>
-                            {% endfor %}
+                    {% for entrada in entradas %}
+                    <tr class="border-b last:border-none text-xs">
+                        <td class="py-3 text-slate-500 whitespace-nowrap">{{ entrada.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="py-3 font-semibold text-slate-800">🏭 {{ entrada.proveedor.nombre }}</td>
+                        <td class="py-3 text-slate-600">{{ entrada.referencia or 'N/A' }}</td>
+                        <td class="py-3">
+                            <ul class="space-y-1">
+                                {% for det in entrada.detalles %}
+                                <li class="text-slate-600">▪️ {{ det.producto.nombre }} — <strong class="text-slate-800">+{{ det.cantidad }} unidades</strong></li>
+                                {% endfor %}
+                            </ul>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="3" class="py-4 text-center text-slate-400 italic text-sm">No hay registros de pedidos recibidos.</td></tr>
+                    <tr><td colspan="4" class="py-6 text-center text-slate-400 italic">No hay registros de pedidos recibidos.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -157,4 +145,16 @@
     </div>
 
 </div>
+
+<!-- Script para clonar filas de productos en el formulario de entrada -->
+<script>
+function agregarFilaProducto() {
+    const container = document.getElementById('productos-container');
+    const primeraFila = container.querySelector('.fila-producto');
+    const nuevaFila = primeraFila.cloneNode(true);
+    nuevaFila.querySelector('input').value = '';
+    nuevaFila.querySelector('select').selectedIndex = 0;
+    container.appendChild(nuevaFila);
+}
+</script>
 {% endblock %}

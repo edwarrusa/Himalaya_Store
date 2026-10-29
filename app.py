@@ -51,7 +51,7 @@ class Billetera(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     saldo_inicial = db.Column(db.Float, default=0.0)
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow) # 👈 Para registrar cuándo nació la wallet
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     
     ventas = db.relationship('Venta', backref='billetera', lazy=True)
     gastos = db.relationship('Gasto', backref='billetera', lazy=True)
@@ -64,14 +64,11 @@ class Billetera(db.Model):
         total_gastos = sum(g.monto for g in self.gastos)
         total_enviadas = sum(t.monto for t in self.transferencias_enviadas)
         total_recibidas = sum(t.monto for t in self.transferencias_recibidas)
-        # Suma el saldo inicial al cálculo global de dinero disponible
         return self.saldo_inicial + total_ventas - total_gastos - total_enviadas + total_recibidas
 
     @property
     def movimientos(self):
         lista = []
-        
-        # 👇 AQUÍ ESTÁ LA TRAZABILIDAD: Si hay saldo inicial, aparece como el primer movimiento contable
         if self.saldo_inicial > 0:
             lista.append({
                 'fecha': self.fecha_creacion,
@@ -170,7 +167,7 @@ class Transferencia(db.Model):
     destino_id = db.Column(db.Integer, db.ForeignKey('billetera.id'), nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     monto = db.Column(db.Float, nullable=False)
-    comentario = db.Column(db.String(250), nullable=True) # 👈 Este campo guarda el concepto
+    comentario = db.Column(db.String(250), nullable=True)
     fecha = db.Column(db.DateTime, nullable=False)
 
 class Cotizacion(db.Model):
@@ -181,10 +178,7 @@ class Cotizacion(db.Model):
     total = db.Column(db.Float, nullable=False, default=0.0)
     fecha = db.Column(db.DateTime, nullable=False)
     validez_dias = db.Column(db.Integer, default=7)
-    
-    # 🔹 Añadir esta línea para vincular la relación con el cliente:
     cliente = db.relationship('Cliente', backref='cotizaciones', lazy=True)
-    
     detalles = db.relationship('DetalleCotizacion', backref='cotizacion', cascade="all, delete-orphan", lazy=True)
 
 class DetalleCotizacion(db.Model):
@@ -193,8 +187,6 @@ class DetalleCotizacion(db.Model):
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Float, nullable=False)
-    
-    # 🔹 Añadir esta línea para vincular la relación con el producto:
     producto = db.relationship('Producto', backref='detalles_cotizacion', lazy=True)
 
 class CierreMensual(db.Model):
@@ -205,15 +197,12 @@ class CierreMensual(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     total_ventas = db.Column(db.Float, default=0.0)
     total_gastos = db.Column(db.Float, default=0.0)
-    
     usuario = db.relationship('Usuario', backref='cierres_realizados', lazy=True)
 
 with app.app_context():
     db.create_all()
-    # Crear un usuario administrador por defecto si no existe ninguno
     if not Usuario.query.first():
         admin = Usuario(username='admin', password_hash=generate_password_hash('123456'), rol='Administrador')
-        db.create_all()
         db.session.add(admin)
         db.session.commit()
 
@@ -282,6 +271,17 @@ def dashboard():
                            total_productos=len(productos),
                            ventas=ventas)
 
+@app.route('/productos', methods=['GET'])
+@login_required
+def productos():
+    busqueda = request.args.get('q', '').strip()
+    if busqueda:
+        lista_productos = Producto.query.filter(Producto.nombre.ilike(f'%{busqueda}%')).all()
+    else:
+        lista_productos = Producto.query.all()
+        
+    return render_template('productos.html', store_name="Himalaya Store SC", productos=lista_productos, busqueda=busqueda)
+
 @app.route('/inventario')
 @login_required
 def inventario():
@@ -290,6 +290,16 @@ def inventario():
     entradas = EntradaInventario.query.order_by(EntradaInventario.fecha.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('inventario.html', store_name="Himalaya Store SC", productos=productos, proveedores=proveedores, entradas=entradas, fecha_hoy=fecha_hoy)
+
+# 👇 NUEVA RUTA: Reporte de inventario imprimible para clientes
+@app.route('/inventario/imprimir')
+@login_required
+def imprimir_inventario():
+    productos = Producto.query.filter(Producto.stock_actual > 0).all() # O todos los productos que desees mostrar
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    return render_template('imprimir_inventario.html', store_name="Himalaya Store SC", productos=productos, fecha_hoy=fecha_hoy)
+
+
 
 @app.route('/ventas')
 @login_required
@@ -324,16 +334,13 @@ def finanzas():
     
     selected_wallet = Billetera.query.get(wallet_seleccionada) if wallet_seleccionada else None
 
-    # Generar listado general consolidado de todas las operaciones financieras
     movimientos_globales = []
     for b in billeteras:
         for m in b.movimientos:
-            # Añadimos el nombre de la billetera al diccionario del movimiento
             m_copia = m.copy()
             m_copia['billetera'] = b.nombre
             movimientos_globales.append(m_copia)
     
-    # Ordenar todos los movimientos globales por fecha descendente
     movimientos_globales.sort(key=lambda x: x['fecha'], reverse=True)
 
     return render_template('finanzas.html', 
@@ -373,12 +380,91 @@ def agregar_proveedor():
 @login_required
 def agregar_producto():
     nombre = request.form.get('nombre')
-    precio = float(request.form.get('precio', 0))
-    stock = int(request.form.get('stock', 0))
+    try:
+        precio = float(request.form.get('precio', 0))
+        stock = int(request.form.get('stock', 0))
+    except ValueError:
+        precio = 0.0
+        stock = 0
+
     if nombre:
         db.session.add(Producto(nombre=nombre, precio=precio, stock_actual=stock))
         db.session.commit()
-    return redirect(url_for('inventario'))
+    return redirect(url_for('productos'))
+
+@app.route('/editar_producto/<int:id>', methods=['POST'])
+@login_required
+def editar_producto(id):
+    prod = Producto.query.get_or_404(id)
+    prod.nombre = request.form.get('nombre', prod.nombre)
+    try:
+        prod.precio = float(request.form.get('precio', prod.precio))
+    except ValueError:
+        pass
+    
+    db.session.commit()
+    flash('Producto actualizado correctamente.', 'success')
+    return redirect(url_for('productos'))
+
+
+@app.route('/registrar_venta', methods=['POST'])
+@login_required
+def registrar_venta():
+    cliente_id = request.form.get('cliente_id')
+    billetera_id = request.form.get('billetera_id')
+    fecha_str = request.form.get('fecha')
+    productos_ids = request.form.getlist('producto_id[]')
+    cantidades = request.form.getlist('cantidad[]')
+    
+    fecha_venta = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
+    if not cliente_id or not billetera_id or not productos_ids:
+        flash('Faltan datos obligatorios para registrar la venta.', 'error')
+        return redirect(url_for('ventas'))
+
+    for p_id, cant in zip(productos_ids, cantidades):
+        if p_id and cant:
+            producto = Producto.query.get(int(p_id))
+            cantidad = int(cant)
+            if producto and producto.stock_actual < cantidad:
+                flash(f'Stock insuficiente para el producto: {producto.nombre}', 'error')
+                return redirect(url_for('ventas'))
+
+    nueva_venta = Venta(
+        cliente_id=int(cliente_id),
+        billetera_id=int(billetera_id),
+        usuario_id=current_user.id,
+        total=0.0,
+        fecha=fecha_venta
+    )
+    db.session.add(nueva_venta)
+    db.session.flush()
+
+    total_venta = 0.0
+    for p_id, cant in zip(productos_ids, cantidades):
+        if p_id and cant:
+            producto = Producto.query.get(int(p_id))
+            cantidad = int(cant)
+            if producto and cantidad > 0:
+                subtotal = producto.precio * cantidad
+                total_venta += subtotal
+                producto.stock_actual -= cantidad
+                
+                db.session.add(DetalleVenta(
+                    venta_id=nueva_venta.id,
+                    producto_id=producto.id,
+                    cantidad=cantidad,
+                    precio_unitario=producto.precio
+                ))
+
+    nueva_venta.total = total_venta
+    db.session.commit()
+
+    socketio.emit('notificacion_global', {
+        'titulo': '🛒 Nueva Venta Registrada',
+        'mensaje': f'{current_user.username} registró una venta por ${total_venta:.2f}.'
+    })
+
+    return redirect(url_for('ventas'))
 
 @app.route('/registrar_entrada_inventario', methods=['POST'])
 @login_required
@@ -407,7 +493,6 @@ def registrar_entrada_inventario():
 
     db.session.commit()
     
-    # Notificar a todos los usuarios conectados
     socketio.emit('notificacion_global', {
         'titulo': '📦 Nuevo Pedido Recibido',
         'mensaje': f'{current_user.username} registró una entrada de inventario (Ref: {referencia}).'
@@ -444,7 +529,6 @@ def registrar_gasto():
         db.session.add(gasto)
         db.session.commit()
         
-        # Notificar a todos
         socketio.emit('notificacion_global', {
             'titulo': '💸 Gasto Registrado',
             'mensaje': f'{current_user.username} registró un gasto de ${monto:.2f} ({concepto}).'
@@ -458,7 +542,7 @@ def registrar_transferencia():
     origen_id = int(request.form.get('origen_id'))
     destino_id = int(request.form.get('destino_id'))
     monto = float(request.form.get('monto', 0))
-    comentario = request.form.get('comentario', '').strip() # 👈 Captura el concepto
+    comentario = request.form.get('comentario', '').strip()
     fecha_str = request.form.get('fecha')
     
     fecha_trans = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
@@ -468,7 +552,7 @@ def registrar_transferencia():
             destino_id=destino_id, 
             monto=monto, 
             usuario_id=current_user.id, 
-            comentario=comentario, # 👈 Lo guarda en la base de datos
+            comentario=comentario, 
             fecha=fecha_trans
         )
         db.session.add(trans)
@@ -493,10 +577,10 @@ def cotizaciones():
     productos = Producto.query.all()
     clientes = Cliente.query.all()
     billeteras = Billetera.query.all()
-    # 🔹 Filtrar para mostrar únicamente las cotizaciones con estado 'Pendiente'
     lista_cotizaciones = Cotizacion.query.filter_by(estado='Pendiente').order_by(Cotizacion.fecha.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('cotizaciones.html', store_name="Himalaya Store SC", productos=productos, clientes=clientes, billeteras=billeteras, cotizaciones=lista_cotizaciones, fecha_hoy=fecha_hoy)
+
 @app.route('/registrar_cotizacion', methods=['POST'])
 @login_required
 def registrar_cotizacion():
@@ -544,13 +628,11 @@ def convertir_cotizacion(id):
     if cotizacion.estado != 'Pendiente' or not billetera_id:
         return redirect(url_for('detalle_cotizacion', id=id))
 
-    # Verificar stock antes de convertir
     for d in cotizacion.detalles:
         if d.producto.stock_actual < d.cantidad:
             flash(f'Stock insuficiente para el producto: {d.producto.nombre}', 'error')
             return redirect(url_for('detalle_cotizacion', id=id))
 
-    # Crear la Venta oficial
     nueva_venta = Venta(
         cliente_id=cotizacion.cliente_id,
         billetera_id=int(billetera_id),
@@ -561,7 +643,6 @@ def convertir_cotizacion(id):
     db.session.add(nueva_venta)
     db.session.flush()
 
-    # Descontar inventario y crear detalles de venta
     for d in cotizacion.detalles:
         producto = d.producto
         producto.stock_actual -= d.cantidad
@@ -575,7 +656,6 @@ def convertir_cotizacion(id):
     cotizacion.estado = 'Aprobada (Convertida a Venta)'
     db.session.commit()
 
-    # Notificar globalmente a los demás usuarios
     socketio.emit('notificacion_global', {
         'titulo': '🎯 Cotización Convertida en Venta',
         'mensaje': f'{current_user.username} convirtió la cotización #{cotizacion.id} en venta por ${cotizacion.total:.2f}.'
@@ -605,21 +685,18 @@ def realizar_cierre():
     anio = int(request.form.get('anio'))
     mes = int(request.form.get('mes'))
     
-    # Calcular ventas del mes seleccionado
     ventas_mes = Venta.query.filter(
         db.extract('year', Venta.fecha) == anio,
         db.extract('month', Venta.fecha) == mes
     ).all()
     total_v = sum(v.total for v in ventas_mes)
 
-    # Calcular gastos del mes seleccionado
     gastos_mes = Gasto.query.filter(
         db.extract('year', Gasto.fecha) == anio,
         db.extract('month', Gasto.fecha) == mes
     ).all()
     total_g = sum(g.monto for g in gastos_mes)
 
-    # Registrar el cierre en el historial
     nuevo_cierre = CierreMensual(
         anio=anio,
         mes=mes,

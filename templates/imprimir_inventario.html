@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventario y Precios - {{ store_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800 p-8">
+
+    <!-- Panel de Configuración (No sale impreso gracias a .no-print) -->
+    <div class="no-print max-w-4xl mx-auto mb-8 p-4 bg-slate-50 border rounded-2xl shadow-sm flex flex-wrap gap-4 items-center justify-between">
+        <div class="flex items-center gap-4 flex-wrap">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Ajuste / Margen / Recargo (%)</label>
+                <input type="number" id="porcentaje" value="0" step="1" class="px-3 py-1.5 border rounded-lg text-sm w-32 bg-white" oninput="calcularPrecios()" placeholder="Ej. 10 o -5">
+            </div>
+        </div>
+        <button onclick="window.print()" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-slate-900 transition flex items-center gap-2">
+            🖨️ Imprimir / Guardar PDF
+        </button>
+    </div>
+
+    <div class="max-w-4xl mx-auto space-y-6">
+        <!-- Encabezado de Impresión -->
+        <div class="text-center border-b pb-4">
+            <h1 class="text-2xl font-bold uppercase tracking-wide">{{ store_name }}</h1>
+            <p class="text-sm text-slate-500">Catálogo de Productos y Precios Disponibles</p>
+            <p class="text-xs text-slate-400 mt-1">Fecha de emisión: {{ fecha_hoy }}</p>
+        </div>
+
+        <!-- Tabla de Productos -->
+        <table class="w-full text-left text-sm border-collapse">
+            <thead>
+                <tr class="border-b-2 border-slate-800 text-xs text-slate-700 uppercase">
+                    <th class="py-2">Descripción del Producto</th>
+                    <th class="py-2 text-center">Disponibilidad</th>
+                    <th class="py-2 text-right">Precio Final ($)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                <tr class="border-b border-slate-200 text-sm">
+                    <td class="py-3 font-medium text-slate-900">{{ p.nombre }}</td>
+                    <td class="py-3 text-center text-slate-600">{{ p.stock_actual }} disp.</td>
+                    <td class="py-3 text-right font-bold text-slate-900 precio-ajustado" data-precio-usd="{{ p.precio }}">${{ "%.1f"|format(p.precio) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="py-4 text-center text-slate-400 italic">No hay productos con stock disponible para mostrar.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pie de página -->
+        <div class="pt-8 text-center text-xs text-slate-400 border-t">
+            <p>Gracias por preferirnos. Precios sujetos a cambio sin previo aviso.</p>
+        </div>
+    </div>
+
+    <!-- Script de cálculo con redondeo hacia arriba a 1 decimal -->
+    <script>
+    function calcularPrecios() {
+        const porcentaje = parseFloat(document.getElementById('porcentaje').value) || 0;
+        const factor = 1 + (porcentaje / 100);
+
+        document.querySelectorAll('.precio-ajustado').forEach(el => {
+            const precioBase = parseFloat(el.getAttribute('data-precio-usd')) || 0;
+            const precioCalculado = precioBase * factor;
+            
+            // Math.ceil con multiplicación y división por 10 para redondear siempre hacia arriba a 1 decimal
+            const precioFinal = Math.ceil(precioCalculado * 10) / 10;
+            
+            el.textContent = '$' + precioFinal.toFixed(1);
+        });
+    }
+
+    // Ejecutar al cargar la página
+    window.onload = calcularPrecios;
+    </script>
+</body>
+</html>
