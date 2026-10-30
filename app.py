@@ -5,9 +5,18 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 
+import os
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'himalaya_secret_key_secure_2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///himalaya.db'
+
+# 🛠️ NUEVO: Detectar si el disco persistente de Render está montado en /var/data
+if os.path.exists('/var/data'):
+    db_path = '/var/data/himalaya.db'
+else:
+    db_path = 'himalaya.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -946,7 +955,7 @@ def registrar_salida_inventario():
     flash('Salida de inventario registrada y stock actualizado correctamente.', 'success')
     return redirect(url_for('inventario'))
 
-import os
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
