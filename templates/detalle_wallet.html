@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+
+    <!-- Encabezado y Retorno -->
+    <div class="bg-white p-6 rounded-2xl shadow-md flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">💎 Detalle de Wallet: {{ wallet.nombre }}</h1>
+            <p class="text-xs text-slate-500 mt-1">Historial detallado y movimientos de esta billetera.</p>
+        </div>
+        <a href="{{ url_for('wallets') }}" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-xs font-medium hover:bg-slate-200 transition">
+            ← Volver a Wallets
+        </a>
+    </div>
+
+    <!-- Tarjeta de Saldo Actual -->
+    <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
+        <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Saldo Disponible Actual</span>
+            <div class="text-3xl font-extrabold text-emerald-400 mt-1">${{ "%.2f"|format(wallet.saldo) }}</div>
+        </div>
+        <div class="text-right">
+            <span class="text-xs text-slate-400 block">Fecha de creación</span>
+            <span class="text-xs font-medium text-slate-200">{{ wallet.fecha_creacion.strftime('%Y-%m-%d') if wallet.fecha_creacion else 'N/A' }}</span>
+        </div>
+    </div>
+
+    <!-- Tabla de Movimientos Exclusivos de esta Wallet -->
+    <div class="bg-white p-6 rounded-2xl shadow-md">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+            <span>📜</span> Historial de Movimientos de la Billetera
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b text-xs text-slate-400 uppercase">
+                        <th class="pb-2">Fecha</th>
+                        <th class="pb-2">Tipo de Movimiento</th>
+                        <th class="pb-2">Descripción</th>
+                        <th class="pb-2 text-right">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in wallet.movimientos %}
+                    <tr class="border-b last:border-none text-xs">
+                        <td class="py-3 text-slate-500 whitespace-nowrap">{{ m.fecha.strftime('%Y-%m-%d %H:%M') if m.fecha else 'N/A' }}</td>
+                        <td class="py-3">
+                            <span class="font-bold px-2 py-0.5 rounded {{ 'bg-emerald-50 text-emerald-700' if m.es_ingreso else 'bg-red-50 text-red-700' }}">
+                                {{ m.tipo }}
+                            </span>
+                        </td>
+                        <td class="py-3 text-slate-700">{{ m.descripcion }}</td>
+                        <td class="py-3 text-right font-bold {{ 'text-emerald-600' if m.es_ingreso else 'text-red-600' }}">
+                            {{ '+' if m.es_ingreso else '-' }}${{ "%.2f"|format(m.monto) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="py-6 text-center text-slate-400 italic">No hay movimientos registrados para esta billetera.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

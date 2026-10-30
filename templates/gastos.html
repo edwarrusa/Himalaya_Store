@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8">
+    
+    <!-- Encabezado -->
+    <div class="bg-white p-6 rounded-2xl shadow-md">
+        <h1 class="text-2xl font-bold text-slate-900">💸 Módulo de Gastos e Historial</h1>
+        <p class="text-xs text-slate-500 mt-1">Control de salidas de dinero, pagos operativos y registro histórico.</p>
+    </div>
+
+    <!-- Formulario Registrar Gasto -->
+    <div class="bg-white p-6 rounded-2xl shadow-md max-w-xl mx-auto">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+            <span>🧾</span> Registrar Nuevo Gasto
+        </h2>
+        <form action="{{ url_for('registrar_gasto') }}" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Wallet / Billetera de Origen</label>
+                <select name="billetera_id" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                    <option value="">Seleccione billetera</option>
+                    {% for w in billeteras %}
+                    <option value="{{ w.id }}">{{ w.nombre }} (Disponible: ${{ "%.2f"|format(w.saldo) }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Concepto / Descripción del Gasto</label>
+                <input type="text" name="concepto" placeholder="Ej. Pago de servicios, papelería..." required class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Monto ($)</label>
+                    <input type="number" step="0.01" name="monto" placeholder="0.00" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
+                    <input type="date" name="fecha" value="{{ fecha_hoy }}" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-red-600 text-white font-medium py-2.5 rounded-xl text-sm hover:bg-red-700 transition shadow-sm mt-2">
+                Registrar Gasto
+            </button>
+        </form>
+    </div>
+
+    <!-- Historial de Gastos -->
+    <div class="bg-white p-6 rounded-2xl shadow-md">
+        <h2 class="text-lg font-semibold mb-4 text-slate-800 flex items-center gap-2">
+            <span>📜</span> Historial de Gastos Registrados
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b text-xs text-slate-400 uppercase">
+                        <th class="pb-2">Fecha</th>
+                        <th class="pb-2">Wallet</th>
+                        <th class="pb-2">Concepto</th>
+                        <th class="pb-2 text-right">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for g in gastos %}
+                    <tr class="border-b last:border-none text-xs">
+                        <td class="py-3 text-slate-500 whitespace-nowrap">{{ g.fecha.strftime('%Y-%m-%d') if g.fecha else 'N/A' }}</td>
+                        <td class="py-3 font-semibold text-slate-800">💳 {{ g.billetera.nombre if g.billetera else 'N/A' }}</td>
+                        <td class="py-3 text-slate-700">{{ g.concepto }}</td>
+                        <td class="py-3 text-right font-bold text-red-600">-${{ "%.2f"|format(g.monto) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="py-6 text-center text-slate-400 italic">No hay gastos registrados en el sistema.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

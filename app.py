@@ -202,7 +202,7 @@ class CierreMensual(db.Model):
 class SalidaInventario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
-    concepto = db.Column(db.String(255), nullable=False) # Motivo: donación, vencimiento, uso interno, etc.
+    concepto = db.Column(db.String(255), nullable=False)
     observacion = db.Column(db.Text, nullable=True)
     detalles = db.relationship('DetalleSalida', backref='salida', cascade='all, delete-orphan')
 
@@ -302,20 +302,16 @@ def inventario():
     productos = Producto.query.all()
     proveedores = Proveedor.query.all()
     entradas = EntradaInventario.query.order_by(EntradaInventario.fecha.desc()).all()
-    salidas = SalidaInventario.query.order_by(SalidaInventario.fecha.desc()).all() # 👈 Añadir esto
+    salidas = SalidaInventario.query.order_by(SalidaInventario.fecha.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('inventario.html', store_name="Himalaya Store SC", productos=productos, proveedores=proveedores, entradas=entradas, salidas=salidas, fecha_hoy=fecha_hoy)
 
-
-# 👇 NUEVA RUTA: Reporte de inventario imprimible para clientes
 @app.route('/inventario/imprimir')
 @login_required
 def imprimir_inventario():
-    productos = Producto.query.filter(Producto.stock_actual > 0).all() # O todos los productos que desees mostrar
+    productos = Producto.query.filter(Producto.stock_actual > 0).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('imprimir_inventario.html', store_name="Himalaya Store SC", productos=productos, fecha_hoy=fecha_hoy)
-
-
 
 @app.route('/ventas')
 @login_required
@@ -339,36 +335,52 @@ def proveedores():
     lista_proveedores = Proveedor.query.all()
     return render_template('proveedores.html', store_name="Himalaya Store SC", proveedores=lista_proveedores)
 
-@app.route('/finanzas')
+
+# ==========================================
+# --- MÓDULO FINANCIERO SEPARADO (NUEVO) ---
+# ==========================================
+
+# 1. Submenú de Wallets (Creación, transferencias y listado de billeteras activas)
+@app.route('/wallets')
 @login_required
-def finanzas():
+def wallets():
     billeteras = Billetera.query.all()
-    gastos = Gasto.query.order_by(Gasto.fecha.desc()).all()
-    transferencias = Transferencia.query.order_by(Transferencia.fecha.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
-    wallet_seleccionada = request.args.get('wallet_id', type=int)
-    
-    selected_wallet = Billetera.query.get(wallet_seleccionada) if wallet_seleccionada else None
-
-    movimientos_globales = []
-    for b in billeteras:
-        for m in b.movimientos:
-            m_copia = m.copy()
-            m_copia['billetera'] = b.nombre
-            movimientos_globales.append(m_copia)
-    
-    movimientos_globales.sort(key=lambda x: x['fecha'], reverse=True)
-
-    return render_template('finanzas.html', 
+    return render_template('wallets.html', 
                            store_name="Himalaya Store SC", 
                            billeteras=billeteras, 
-                           gastos=gastos, 
-                           transferencias=transferencias, 
-                           fecha_hoy=fecha_hoy,
-                           selected_wallet=selected_wallet,
-                           movimientos_globales=movimientos_globales)
+                           fecha_hoy=fecha_hoy)
 
-# --- ACCIONES (CON EMISIÓN DE NOTIFICACIONES WEBSOCKET) ---
+# 2. Submenú de Gastos (Registro de nuevos gastos e historial detallado)
+@app.route('/gastos')
+@login_required
+def gastos():
+    billeteras = Billetera.query.all()
+    lista_gastos = Gasto.query.order_by(Gasto.fecha.desc()).all()
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    return render_template('gastos.html', 
+                           store_name="Himalaya Store SC", 
+                           billeteras=billeteras, 
+                           gastos=lista_gastos, 
+                           fecha_hoy=fecha_hoy)
+
+# 3. Submenú de Cierres Mensuales (Ya existente e intacto)
+@app.route('/cierres')
+@login_required
+def cierres():
+    lista_cierres = CierreMensual.query.order_by(CierreMensual.anio.desc(), CierreMensual.mes.desc()).all()
+    fecha_hoy = datetime.now()
+    return render_template('cierres.html', store_name="Himalaya Store SC", cierres=lista_cierres, fecha_hoy=fecha_hoy)
+
+# Vista detallada exclusiva para una Wallet individual
+@app.route('/wallet/<int:id>')
+@login_required
+def detalle_wallet(id):
+    wallet = Billetera.query.get_or_404(id)
+    return render_template('detalle_wallet.html', store_name="Himalaya Store SC", wallet=wallet)
+
+
+# --- ACCIONES Y PROCESAMIENTO (CON WEBSOCKETS) ---
 
 @app.route('/agregar_cliente', methods=['POST'])
 @login_required
@@ -421,7 +433,6 @@ def editar_producto(id):
     db.session.commit()
     flash('Producto actualizado correctamente.', 'success')
     return redirect(url_for('productos'))
-
 
 @app.route('/registrar_venta', methods=['POST'])
 @login_required
@@ -529,7 +540,7 @@ def agregar_billetera():
         nueva_w = Billetera(nombre=nombre, saldo_inicial=saldo_inicial, fecha_creacion=datetime.utcnow())
         db.session.add(nueva_w)
         db.session.commit()
-    return redirect(url_for('finanzas'))
+    return redirect(url_for('wallets'))
 
 @app.route('/registrar_gasto', methods=['POST'])
 @login_required
@@ -550,7 +561,7 @@ def registrar_gasto():
             'mensaje': f'{current_user.username} registró un gasto de ${monto:.2f} ({concepto}).'
         })
         
-    return redirect(url_for('finanzas'))
+    return redirect(url_for('gastos'))
 
 @app.route('/registrar_transferencia', methods=['POST'])
 @login_required
@@ -579,7 +590,7 @@ def registrar_transferencia():
             'mensaje': f'{current_user.username} transfirió ${monto:.2f} entre billeteras.'
         })
         
-    return redirect(url_for('finanzas'))
+    return redirect(url_for('wallets'))
 
 @app.route('/venta/<int:id>')
 @login_required
@@ -688,13 +699,6 @@ def eliminar_cotizacion(id):
         db.session.commit()
     return redirect(url_for('cotizaciones'))
 
-@app.route('/cierres')
-@login_required
-def cierres():
-    lista_cierres = CierreMensual.query.order_by(CierreMensual.anio.desc(), CierreMensual.mes.desc()).all()
-    fecha_hoy = datetime.now()
-    return render_template('cierres.html', store_name="Himalaya Store SC", cierres=lista_cierres, fecha_hoy=fecha_hoy)
-
 @app.route('/realizar_cierre', methods=['POST'])
 @login_required
 def realizar_cierre():
@@ -777,23 +781,19 @@ def registrar_salida_inventario():
     
     nueva_salida = SalidaInventario(concepto=concepto, observacion=observacion, fecha=fecha)
     db.session.add(nueva_salida)
-    db.session.flush() # Para obtener el ID de la salida
+    db.session.flush()
     
     for p_id, cant in zip(productos_ids, cantidades):
         if p_id and cant:
             producto = Producto.query.get(int(p_id))
             cantidad_retirar = int(cant)
             
-            # Opcional: Validar que no retires más de lo que hay en stock
             if producto.stock_actual < cantidad_retirar:
                 flash(f'Stock insuficiente para "{producto.nombre}". Stock actual: {producto.stock_actual}', 'error')
                 db.session.rollback()
                 return redirect(url_for('inventario'))
             
-            # Descontar stock actual
             producto.stock_actual -= cantidad_retirar
-            
-            # Registrar detalle
             detalle = DetalleSalida(salida_id=nueva_salida.id, producto_id=producto.id, cantidad=cantidad_retirar)
             db.session.add(detalle)
             

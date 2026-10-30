@@ -173,10 +173,33 @@
                     </div>
                 </div>
 
+                <!-- Menú Desplegable de Finanzas Unificado -->
+                <div class="relative group">
+                    <button class="hover:text-emerald-400 transition flex items-center gap-1 py-2">
+                        💳 Finanzas <span class="text-xs">▼</span>
+                    </button>
+                <div class="absolute left-0 mt-0 w-48 bg-white rounded-xl shadow-xl py-2 hidden group-hover:block z-50 border border-slate-100">
+                    <a href="{{ url_for('gastos') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                        💸 Gastos & Historial
+                     </a>
+                    <a href="{{ url_for('wallets') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                    💼 Wallets y Transferencias
+                    </a>
+                    <a href="{{ url_for('cierres') }}" class="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition">
+                        📊 Cierres Mensuales
+                    </a>
+                    </div>
+                </div>
+                            
+               
+               
+               
+               
+               
                 <!-- Enlaces Directos -->
-                <a href="{{ url_for('finanzas') }}" class="hover:text-emerald-400 transition">💳 Wallets & Finanzas</a>
+               
                 <a href="{{ url_for('gestionar_usuarios') }}" class="hover:text-emerald-400 transition">👥 Usuarios</a>
-                <a href="{{ url_for('cierres') }}" class="hover:text-emerald-400 transition">📊 Cierres</a>
+               
                 
                 <!-- BOTÓN DE LA CAMPANITA DE NOTIFICACIONES -->
                 <div class="relative">
