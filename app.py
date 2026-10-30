@@ -310,6 +310,24 @@ def gestionar_usuarios():
     usuarios = Usuario.query.all()
     return render_template('usuarios.html', store_name="Himalaya Store SC", usuarios=usuarios)
 
+@app.route('/usuario/<int:id>/reset_password', methods=['POST'])
+@login_required
+def reset_password(id):
+    # 🔒 Solo el Administrador puede hacer esto
+    if current_user.rol != 'Administrador':
+        flash('Acceso denegado. No tienes permisos.', 'error')
+        return redirect(url_for('dashboard'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    nueva_clave_temporal = request.form.get('nueva_clave', '123456') # Clave por defecto si no especifica otra
+    
+    usuario.password_hash = generate_password_hash(nueva_clave_temporal)
+    usuario.debe_cambiar_clave = True # 👈 ¡Importante! Lo obliga a cambiarla al volver a entrar
+    db.session.commit()
+    
+    flash(f'Contraseña restablecida para {usuario.username}. Clave temporal: {nueva_clave_temporal}', 'success')
+    return redirect(url_for('gestionar_usuarios'))    
+
 # --- RUTAS PRINCIPALES (PROTEGIDAS) ---
 
 @app.route('/')

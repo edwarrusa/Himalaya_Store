@@ -33,6 +33,7 @@
                     <tr class="border-b text-xs text-slate-400 uppercase">
                         <th class="pb-2">Usuario</th>
                         <th class="pb-2">Rol</th>
+                        <th class="pb-2 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -41,6 +42,13 @@
                         <td class="py-3 font-medium">🔹 {{ u.username }}</td>
                         <td class="py-3 text-slate-600 text-xs">
                             <span class="px-2 py-1 rounded bg-slate-100 font-semibold">{{ u.rol }}</span>
+                        </td>
+                        <td class="py-3 text-right">
+                            <form action="{{ url_for('reset_password', id=u.id) }}" method="POST" class="inline-block" onsubmit="return confirm('¿Estás seguro de restablecer la contraseña de {{ u.username }} a la clave temporal (123456)?');">
+                                <button type="submit" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-amber-100 transition" title="Restablecer clave a 123456">
+                                    🔄 Restablecer Clave
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
