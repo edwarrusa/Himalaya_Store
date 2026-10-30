@@ -49,7 +49,7 @@
                         <select name="producto_id[]" required class="w-3/5 px-2 py-1.5 border rounded text-xs bg-white">
                             <option value="">Producto</option>
                             {% for p in productos %}
-                            <option value="{{ p.id }}">{{ p.nombre }} (${{ p.precio }})</option>
+                            <option value="{{ p.id }}">{{ p.nombre }} ({{ p.stock_actual }}unds)</option>
                             {% endfor %}
                         </select>
                         <input type="number" name="cantidad[]" min="1" value="1" required class="w-1/5 px-2 py-1.5 border rounded text-xs text-center">
@@ -95,6 +95,9 @@
                         <td class="py-3 text-right space-x-2">
                             <a href="{{ url_for('detalle_cotizacion', id=cot.id) }}" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-slate-800 transition shadow">Ver / Enviar</a>
                             {% if cot.estado == 'Pendiente' %}
+                            <a href="{{ url_for('editar_cotizacion', id=cot.id) }}" class="inline-block bg-amber-500/10 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-amber-500 hover:text-white transition">
+        ✏️ Editar
+    </a>
                             <form action="{{ url_for('eliminar_cotizacion', id=cot.id) }}" method="POST" class="inline">
                                 <button type="submit" onclick="return confirm('¿Eliminar esta cotización?')" class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1">Eliminar</button>
                             </form>

@@ -21,12 +21,11 @@
             {% if venta.cliente.telefono %}<p class="text-slate-600">Tel: {{ venta.cliente.telefono }}</p>{% endif %}
             {% if venta.cliente.direccion %}<p class="text-slate-600">Dir: {{ venta.cliente.direccion }}</p>{% endif %}
         </div>
-        <div>
-            <span class="text-slate-400 block uppercase font-semibold mb-0.5">Método de Cobro (Wallet):</span>
-            <span class="font-bold text-slate-800 text-sm">🔹 {{ venta.billetera.nombre }}</span>
-            <p class="text-slate-600 mt-1">Registrado por: <b>{{ venta.usuario.username }}</b></p>
-        </div>
-    </div>
+        <div class="block print:hidden bg-slate-50 p-4 rounded-xl text-xs space-y-1">
+    <span class="text-slate-400 block uppercase font-semibold mb-0.5">Método de Cobro (Wallet):</span>
+    <span class="font-bold text-slate-800 text-sm">🔹 {{ venta.billetera.nombre }}</span>
+    <p class="text-slate-600 mt-1">Registrado por: <b>{{ venta.usuario.username }}</b></p>
+</div>    </div>
 
     <!-- Tabla de Productos del Ticket -->
     <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">Detalle de Artículos</h2>

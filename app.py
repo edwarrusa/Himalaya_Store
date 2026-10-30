@@ -23,6 +23,7 @@ class Usuario(UserMixin, db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     rol = db.Column(db.String(50), default='Socio/Operador')
+    debe_cambiar_clave = db.Column(db.Boolean, default=False) # 👈 Bandera para forzar cambio de clave inicial
     
     ventas = db.relationship('Venta', backref='usuario', lazy=True)
     gastos = db.relationship('Gasto', backref='usuario', lazy=True)
@@ -216,11 +217,19 @@ class DetalleSalida(db.Model):
 with app.app_context():
     db.create_all()
     if not Usuario.query.first():
-        admin = Usuario(username='admin', password_hash=generate_password_hash('123456'), rol='Administrador')
+        # Admin inicial creado con clave genérica y forzado a cambiarla en su primer login
+        admin = Usuario(username='admin', password_hash=generate_password_hash('123456'), rol='Administrador', debe_cambiar_clave=True)
         db.session.add(admin)
         db.session.commit()
 
-# --- RUTAS DE AUTENTICACIÓN ---
+# --- INTERCEPTOR DE SEGURIDAD: OBLIGAR A CAMBIAR CLAVE ---
+@app.before_request
+def verificar_cambio_clave():
+    if current_user.is_authenticated and current_user.debe_cambiar_clave:
+        if request.endpoint not in ['cambiar_clave', 'logout', 'static']:
+            return redirect(url_for('cambiar_clave'))
+
+# --- RUTAS DE AUTENTICACIÓN Y PERFIL ---
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -231,6 +240,8 @@ def login():
         
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
+            if user.debe_cambiar_clave:
+                return redirect(url_for('cambiar_clave'))
             return redirect(url_for('dashboard'))
         flash('Usuario o contraseña incorrectos', 'error')
     return render_template('login.html', store_name="Himalaya Store SC")
@@ -241,16 +252,54 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+# Ruta para que CUALQUIER usuario logueado pueda cambiar su propio nombre o contraseña
+@app.route('/cambiar_clave', methods=['GET', 'POST'])
+@login_required
+def cambiar_clave():
+    if request.method == 'POST':
+        nuevo_nombre = request.form.get('username')
+        password_actual = request.form.get('password_actual')
+        password_nuevo = request.form.get('password_nuevo')
+        
+        if not check_password_hash(current_user.password_hash, password_actual):
+            flash('La contraseña actual es incorrecta.', 'error')
+            return redirect(url_for('cambiar_clave'))
+            
+        if nuevo_nombre:
+            current_user.username = nuevo_nombre
+            
+        if password_nuevo:
+            current_user.password_hash = generate_password_hash(password_nuevo)
+            
+        current_user.debe_cambiar_clave = False # Ya cumplió con el requisito
+        db.session.commit()
+        
+        flash('¡Credenciales actualizadas exitosamente!', 'success')
+        return redirect(url_for('dashboard'))
+        
+    return render_template('cambiar_clave.html', store_name="Himalaya Store SC")
+
+# --- MÓDULO DE USUARIOS (EXCLUSIVO ADMINISTRADOR) ---
 @app.route('/usuarios', methods=['GET', 'POST'])
 @login_required
 def gestionar_usuarios():
+    # 🔒 Bloqueo estricto: Si no es Administrador, fuera de aquí
+    if current_user.rol != 'Administrador':
+        flash('Acceso denegado. No tienes permisos de administrador.', 'error')
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         rol = request.form.get('rol', 'Socio/Operador')
         if username and password:
             if not Usuario.query.filter_by(username=username).first():
-                nuevo_u = Usuario(username=username, password_hash=generate_password_hash(password), rol=rol)
+                nuevo_u = Usuario(
+                    username=username, 
+                    password_hash=generate_password_hash(password), 
+                    rol=rol,
+                    debe_cambiar_clave=True # Los nuevos usuarios creados también deben cambiar su clave inicial
+                )
                 db.session.add(nuevo_u)
                 db.session.commit()
                 flash('Usuario creado exitosamente', 'success')
@@ -266,6 +315,8 @@ def gestionar_usuarios():
 @app.route('/')
 @login_required
 def dashboard():
+    from datetime import datetime
+    
     productos = Producto.query.all()
     billeteras = Billetera.query.all()
     clientes = Cliente.query.all()
@@ -275,14 +326,26 @@ def dashboard():
     total_capital = sum(b.saldo for b in billeteras)
     total_inventario = sum(p.precio * p.stock_actual for p in productos)
     
+    # 📊 NUEVO: Calcular cantidad total de unidades físicas en inventario
+    cantidad_total_stock = sum(p.stock_actual for p in productos)
+    
+    # 📊 NUEVO: Calcular monto total de ventas del mes actual
+    mes_actual = datetime.now().month
+    anio_actual = datetime.now().year
+    ventas_mes = Venta.query.filter(
+        db.extract('month', Venta.fecha) == mes_actual,
+        db.extract('year', Venta.fecha) == anio_actual
+    ).all()
+    total_ventas_mes = sum(v.total for v in ventas_mes)
+    
     return render_template('dashboard.html', 
                            store_name="Himalaya Store SC",
                            billeteras=billeteras,
                            total_capital=total_capital,
                            total_inventario=total_inventario,
-                           total_clientes=len(clientes),
+                           total_ventas_mes=total_ventas_mes,          # 👈 Pasamos esta variable
+                           cantidad_total_stock=cantidad_total_stock,  # 👈 Y esta variable
                            total_proveedores=len(proveedores),
-                           total_productos=len(productos),
                            ventas=ventas)
 
 @app.route('/productos', methods=['GET'])
@@ -337,10 +400,9 @@ def proveedores():
 
 
 # ==========================================
-# --- MÓDULO FINANCIERO SEPARADO (NUEVO) ---
+# --- MÓDULO FINANCIERO SEPARADO ---
 # ==========================================
 
-# 1. Submenú de Wallets (Creación, transferencias y listado de billeteras activas)
 @app.route('/wallets')
 @login_required
 def wallets():
@@ -351,7 +413,6 @@ def wallets():
                            billeteras=billeteras, 
                            fecha_hoy=fecha_hoy)
 
-# 2. Submenú de Gastos (Registro de nuevos gastos e historial detallado)
 @app.route('/gastos')
 @login_required
 def gastos():
@@ -364,7 +425,6 @@ def gastos():
                            gastos=lista_gastos, 
                            fecha_hoy=fecha_hoy)
 
-# 3. Submenú de Cierres Mensuales (Ya existente e intacto)
 @app.route('/cierres')
 @login_required
 def cierres():
@@ -372,7 +432,6 @@ def cierres():
     fecha_hoy = datetime.now()
     return render_template('cierres.html', store_name="Himalaya Store SC", cierres=lista_cierres, fecha_hoy=fecha_hoy)
 
-# Vista detallada exclusiva para una Wallet individual
 @app.route('/wallet/<int:id>')
 @login_required
 def detalle_wallet(id):
@@ -440,14 +499,17 @@ def registrar_venta():
     cliente_id = request.form.get('cliente_id')
     billetera_id = request.form.get('billetera_id')
     fecha_str = request.form.get('fecha')
+    
     productos_ids = request.form.getlist('producto_id[]')
     cantidades = request.form.getlist('cantidad[]')
+    precios_manuales = request.form.getlist('precio_unitario[]') # 👈 Capturamos los precios manuales
     
     fecha_venta = datetime.strptime(fecha_str, '%Y-%m-%d') if fecha_str else datetime.utcnow()
     if not cliente_id or not billetera_id or not productos_ids:
         flash('Faltan datos obligatorios para registrar la venta.', 'error')
         return redirect(url_for('ventas'))
 
+    # Validar stock primero
     for p_id, cant in zip(productos_ids, cantidades):
         if p_id and cant:
             producto = Producto.query.get(int(p_id))
@@ -456,6 +518,7 @@ def registrar_venta():
                 flash(f'Stock insuficiente para el producto: {producto.nombre}', 'error')
                 return redirect(url_for('ventas'))
 
+    # Crear la venta principal
     nueva_venta = Venta(
         cliente_id=int(cliente_id),
         billetera_id=int(billetera_id),
@@ -467,12 +530,21 @@ def registrar_venta():
     db.session.flush()
 
     total_venta = 0.0
-    for p_id, cant in zip(productos_ids, cantidades):
+    
+    # Recorrer los productos usando zip para asociar ID, cantidad y precio manual
+    for p_id, cant, p_manual in zip(productos_ids, cantidades, precios_manuales):
         if p_id and cant:
             producto = Producto.query.get(int(p_id))
             cantidad = int(cant)
+            
+            # Usar el precio manual ingresado, o el de la base de datos si viene vacío
+            try:
+                precio_final = float(p_manual) if p_manual else producto.precio
+            except ValueError:
+                precio_final = producto.precio
+
             if producto and cantidad > 0:
-                subtotal = producto.precio * cantidad
+                subtotal = precio_final * cantidad
                 total_venta += subtotal
                 producto.stock_actual -= cantidad
                 
@@ -480,7 +552,7 @@ def registrar_venta():
                     venta_id=nueva_venta.id,
                     producto_id=producto.id,
                     cantidad=cantidad,
-                    precio_unitario=producto.precio
+                    precio_unitario=precio_final # 👈 Guardamos el precio manual en el detalle
                 ))
 
     nueva_venta.total = total_venta
@@ -638,6 +710,61 @@ def registrar_cotizacion():
     nueva_cot.total = total_cot
     db.session.commit()
     return redirect(url_for('cotizaciones'))
+
+@app.route('/cotizacion/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_cotizacion(id):
+    cotizacion = Cotizacion.query.get_or_404(id)
+    
+    # Solo permitir editar si está pendiente
+    if cotizacion.estado != 'Pendiente':
+        flash('Solo se pueden editar cotizaciones en estado Pendiente.', 'error')
+        return redirect(url_for('cotizaciones'))
+        
+    if request.method == 'POST':
+        cliente_id = request.form.get('cliente_id')
+        validez = int(request.form.get('validez_dias', 7))
+        fecha_str = request.form.get('fecha')
+        productos_ids = request.form.getlist('producto_id[]')
+        cantidades = request.form.getlist('cantidad[]')
+        
+        if not cliente_id or not productos_ids:
+            flash('Faltan datos obligatorios para actualizar la cotización.', 'error')
+            return redirect(url_for('editar_cotizacion', id=id))
+            
+        cotizacion.cliente_id = int(cliente_id)
+        cotizacion.validez_dias = validez
+        if fecha_str:
+            cotizacion.fecha = datetime.strptime(fecha_str, '%Y-%m-%d')
+            
+        # Limpiar detalles anteriores
+        for d in cotizacion.detalles:
+            db.session.delete(d)
+            
+        total_cot = 0.0
+        for p_id, cant in zip(productos_ids, cantidades):
+            if p_id and cant:
+                producto = Producto.query.get(int(p_id))
+                cantidad = int(cant)
+                if producto and cantidad > 0:
+                    subtotal = producto.precio * cantidad
+                    total_cot += subtotal
+                    db.session.add(DetalleCotizacion(
+                        cotizacion_id=cotizacion.id, 
+                        producto_id=producto.id, 
+                        cantidad=cantidad, 
+                        precio_unitario=producto.precio
+                    ))
+                    
+        cotizacion.total = total_cot
+        db.session.commit()
+        flash('Cotización actualizada exitosamente.', 'success')
+        return redirect(url_for('cotizaciones'))
+        
+    clientes = Cliente.query.all()
+    productos = Producto.query.all()
+    fecha_formato = cotizacion.fecha.strftime('%Y-%m-%d') if cotizacion.fecha else datetime.now().strftime('%Y-%m-%d')
+    return render_template('editar_cotizacion.html', store_name="Himalaya Store SC", cotizacion=cotizacion, clientes=clientes, productos=productos, fecha_formato=fecha_formato)
 
 @app.route('/cotizacion/<int:id>')
 @login_required
