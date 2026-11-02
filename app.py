@@ -348,7 +348,7 @@ def dashboard():
     billeteras = Billetera.query.all()
     clientes = Cliente.query.all()
     proveedores = Proveedor.query.all()
-    ventas = Venta.query.order_by(Venta.fecha.desc()).limit(5).all()
+    ventas = Venta.query.order_by(Venta.id.desc()).limit(5).all()
     
     total_capital = sum(b.saldo for b in billeteras)
     total_inventario = sum(p.precio * p.stock_actual for p in productos)
@@ -409,7 +409,7 @@ def ventas():
     productos = Producto.query.all()
     billeteras = Billetera.query.all()
     clientes = Cliente.query.all()
-    lista_ventas = Venta.query.order_by(Venta.fecha.desc()).all()
+    lista_ventas = Venta.query.order_by(Venta.id.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('ventas.html', store_name="Himalaya Store SC", productos=productos, billeteras=billeteras, clientes=clientes, ventas=lista_ventas, fecha_hoy=fecha_hoy)
 
@@ -892,7 +892,7 @@ def reporte_cierre(id):
     ventas_mes = Venta.query.filter(
         db.extract('year', Venta.fecha) == cierre.anio,
         db.extract('month', Venta.fecha) == cierre.mes
-    ).order_by(Venta.fecha.desc()).all()
+    ).order_by(Venta.id.desc()).all()
 
     gastos_mes = Gasto.query.filter(
         db.extract('year', Gasto.fecha) == cierre.anio,

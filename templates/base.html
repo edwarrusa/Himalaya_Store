@@ -121,7 +121,7 @@
             <!-- Logotipo / Nombre de la Tienda (Lleva al Dashboard) -->
             <div class="text-lg font-bold tracking-wide flex items-center gap-2">
                 <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2 font-bold text-lg hover:text-emerald-400 transition">
-                    <span>⛰️</span> {{ store_name }}
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="h-8 w-auto object-contain"> {{ store_name }}
                 </a>
             </div>
 
