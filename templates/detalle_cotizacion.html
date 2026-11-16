@@ -109,7 +109,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for d in cotizacion.detalles %}
+               {% for d in cotizacion.detalles | sort(attribute='producto.nombre') %}
                 <tr class="border-b last:border-none producto-fila-item">
                     <td class="py-3 font-medium text-slate-800">{{ d.producto.nombre }}</td>
                     <td class="py-3 text-center text-slate-600">{{ d.cantidad }}</td>
