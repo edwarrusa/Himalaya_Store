@@ -720,7 +720,7 @@ def cotizaciones():
     productos = Producto.query.all()
     clientes = Cliente.query.all()
     billeteras = Billetera.query.all()
-    lista_cotizaciones = Cotizacion.query.filter_by(estado='Pendiente').order_by(Cotizacion.fecha.desc()).all()
+    lista_cotizaciones = Cotizacion.query.filter_by(estado='Pendiente').order_by(Cotizacion.id.desc()).all()
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     return render_template('cotizaciones.html', store_name="Himalaya Store SC", productos=productos, clientes=clientes, billeteras=billeteras, cotizaciones=lista_cotizaciones, fecha_hoy=fecha_hoy)
 
