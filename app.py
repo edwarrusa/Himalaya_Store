@@ -426,6 +426,23 @@ def proveedores():
     return render_template('proveedores.html', store_name="Himalaya Store SC", proveedores=lista_proveedores)
 
 
+@app.route('/cliente/editar/<int:id>', methods=['GET', 'POST'])
+@login_required
+def editar_cliente(id):
+    cliente = Cliente.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        cliente.nombre = request.form.get('nombre')
+        cliente.telefono = request.form.get('telefono')
+        cliente.direccion = request.form.get('direccion')
+        
+        db.session.commit()
+        flash('¡Cliente actualizado exitosamente!', 'success')
+        return redirect(url_for('clientes'))
+        
+    return render_template('editar_cliente.html', cliente=cliente)
+
+
 # ==========================================
 # --- MÓDULO FINANCIERO SEPARADO ---
 # ==========================================

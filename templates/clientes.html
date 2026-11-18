@@ -39,6 +39,11 @@
                         <td class="py-3 font-medium">{{ c.nombre }}</td>
                         <td class="py-3 text-slate-600">{{ c.telefono or 'N/A' }}</td>
                         <td class="py-3 text-slate-600">{{ c.direccion or 'N/A' }}</td>
+                        <td class="py-3 text-right">
+        <a href="{{ url_for('editar_cliente', id=c.id) }}" class="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-emerald-600 hover:text-white transition font-semibold">
+            ✏️ Editar
+        </a>
+    </td>
                     </tr>
                     {% else %}
                     <tr><td colspan="3" class="py-4 text-center text-slate-400 italic text-sm">Sin clientes registrados.</td></tr>
